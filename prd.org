@@ -1,0 +1,24 @@
+#+title: reMarkable Wiki
+
+* Requirements
+- Separate repository and maintained package for Wikipedia search/PDF reading.
+- Search and PDF generation use Wikipedia's public services directly from the
+  tablet. No dependency on md-server, API keys, desktop or reMarkable cloud API.
+- Search box, readable results, direct Download action, honest progress/errors.
+- English default and Hebrew option; remember language, provide touch keyboard.
+- Import through the editor's existing DocumentImporter. Do not write library
+  metadata, modify existing documents, patch firmware, or restart per download.
+- New PDFs enter My files and follow normal device sync policy; this is not a
+  cloud-exclusion feature. No claims of offline search or local PDF rendering.
+- AppLoad entry, self-contained app payload, preserve all other installed apps.
+- Pro first; responsive layout for Move, but qualify/install Move independently.
+
+* Next steps
+- DONE: separate app built, HTTP/unit/race/UI tests pass; Linux AppLoad protocol
+  socket tests pass on Pro; app-only installation and live search/PDF download pass.
+- PENDING: open Wikipedia from refreshed AppLoad list, verify native importer
+  availability and actual library insertion using one chosen test article.
+- Get physical keyboard/search/open acceptance; independently qualify Move.
+
+* Changed requirements
+- None. User explicitly chose a new repo rather than modifying existing apps.

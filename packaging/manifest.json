@@ -1,0 +1,10 @@
+{
+  "id": "remarkable-wiki",
+  "name": "Wikipedia",
+  "version": "0.1.0",
+  "entry": "/ui/Main.qml",
+  "loadsBackend": true,
+  "supportsScaling": true,
+  "supportsRotation": true,
+  "canHaveMultipleFrontends": false
+}
