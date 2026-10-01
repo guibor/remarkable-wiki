@@ -7,6 +7,13 @@ reMarkable Wiki is a standalone AppLoad app. The tablet talks directly to
 Wikipedia for both search and PDF downloads—no private server, md-server,
 Google Drive, API key, or desktop companion is involved.
 
+![Search Wikipedia, download a PDF, and open it in the native reMarkable reader](docs/media/wikipedia-demo.gif)
+
+[Watch/download the higher-quality demo](docs/media/wikipedia-reddit-demo.mp4).
+Real Paper Pro recording: live search → download → Open PDF → reading and
+highlighting. Waiting trimmed; typing/selection at 1.25×. The reader shown has
+other add-ons installed; those are not part of this Wikipedia app.
+
 ## Use
 
 1. Open **AppLoad**. If newly installed, tap its **refresh** icon.
@@ -83,14 +90,15 @@ only its cached source PDF. An unresolved ID retains that cache for verification
 
 | Target | Status |
 | --- | --- |
-| Paper Pro, 3.29.0.148, AppLoad 0.6.0 | Owner's recordings confirm refresh/import/Open and native keyboard display. v0.3.2 keyboard-persistence fix installed; 38 UI checks and Go/race/vet pass. Physical persistence recheck pending |
+| Paper Pro, 3.29.0.148, AppLoad 0.6.0 | Owner's October 2 v0.3.2 recording confirms live search with keyboard remaining open, download, Open PDF and reading. 38 UI checks and Go/race/vet pass |
 | Paper Pro Move | Responsive UI covered by desktop mocks; not installed or device-qualified |
 | Other firmware/devices | Not yet qualified |
 
 v0.3.2 corrects a brief input-lock transition that dismissed the native keyboard
 when live search started or was cancelled. All 38 Qt checks and Go/race/vet pass,
 including intermediate read-only-state checks. Tests mock the system input
-method; physical persistence/layout selection remain separate acceptance checks.
+method; the October 2 recording confirms persistence in this demonstrated flow.
+Other keyboard layouts and chosen-folder import remain separate acceptance checks.
 
 Installing the app **does not** install AppLoad or XOVI, replace other apps,
 patch the editor, change the boot process, or restart the tablet. It uses the
@@ -119,11 +127,11 @@ installer. You need SSH access and a separately installed, working
 setup. This repository does not install or update that foundation. Back up
 your device first, and do not bypass a model/firmware mismatch in the installer.
 
-There is no prebuilt public release yet. The repository is currently private;
-these source-install instructions work for accounts with repository access.
+The source is available under the [MIT license](LICENSE). There is no prebuilt
+release yet; build and install using the commands below.
 
 ```sh
-git clone git@github.com:guibor/remarkable-wiki.git
+git clone https://github.com/guibor/remarkable-wiki.git
 cd remarkable-wiki
 ```
 

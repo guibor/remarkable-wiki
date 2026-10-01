@@ -122,10 +122,14 @@ text and a generous touch target. Open PDF remains the large filled primary
 action. The backend protocol stays at 4; this release is UI-only over v0.2.2.
 
 `scripts/make-reddit-demo.sh` trims the owner's supplied recording into
-`docs/media/wikipedia-reddit-demo.mp4` for the unsent Reddit draft. Original
-speed is retained, dead time/false start is cut, and the screen-sharing footer
-is cropped. The clip demonstrates v0.2.2 refresh/import/Open, not incremental
-search or the new button styling; publication notes make that distinction.
+`docs/media/wikipedia-reddit-demo.mp4` plus a looping README GIF from the
+October 2 v0.3.2 recording. Five chronological extracts show live search,
+download/import, Open PDF, and native reading/highlighting. Typing and selection
+run at 1.25x; static waits are cut. The full native keyboard is retained; later
+shots crop/pad only the unrelated screen-sharing footer. No synthetic UI or
+audio is added. The recording's other reader add-ons are not Wiki features.
+The Reddit announcement uses a native video attachment for feed visibility,
+with Self-Promotion flair and the public MIT repository's installation link.
 
 `scripts/build.sh` produces a static arm64 backend and a binary Qt resource.
 The AppLoad manifest loads those without any new shared library or QMD patch.
@@ -208,3 +212,8 @@ v0.3.2 `wiki-ui-20261001T204553Z` installs the transient-readOnly correction.
 All 38 Qt checks and Go/race/vet pass; the new regression failed before the fix.
 Backend/state/icon and runtime preimages match (PID861536, restarts0, same
 drop-ins/read-only root). Physical keyboard persistence still needs recheck.
+
+The owner's October 2 recording now confirms keyboard persistence during live
+search, completed download/import and Open into Jacques Hadamard, followed by
+reading/highlighting. This is flow-specific acceptance, not Move qualification
+or proof of every keyboard layout/folder option.

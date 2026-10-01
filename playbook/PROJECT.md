@@ -28,8 +28,9 @@
 - Accepted: user-confirmed end-to-end search/download/native import on Paper Pro.
 - Accepted: owner's October 1 recording shows explicit refresh and Open PDF
   into the correct native document; native-ID verification confirmed in log.
-- Next: incremental keyboard/results interaction acceptance, chosen-folder flow,
-  independent Move qualification.
+- Accepted: October 2 v0.3.2 recording shows stable native keyboard while live
+  results update, download, Open PDF and native reading/highlighting.
+- Next: chosen-folder flow, other keyboard layouts, independent Move qualification.
 - Later: more Wikipedia languages and optional download history refinement.
 
 ## Open questions

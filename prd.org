@@ -38,8 +38,10 @@
   unresolved in-progress import or automatically duplicate a saved article.
 - Open PDF is the dominant completed-card action; refresh has no button border,
   smaller text, and a short explanation of new-copy/annotation preservation.
-- Prepare a trimmed demo from the user's supplied recording for the Reddit
-  draft; do not post it or change repository visibility without authorization.
+- Publish an edited real-device demo to GitHub and Reddit, with a native
+  video attachment prominent in the Reddit feed and an animated README demo.
+  User authorized Reddit publication and public MIT source on October 2.
+  Review tracked source/history for private data before changing visibility.
 - New PDFs follow normal device sync policy; this is not a
   cloud-exclusion feature. No claims of offline search or local PDF rendering.
 - AppLoad entry, self-contained app payload, preserve all other installed apps.
@@ -81,10 +83,15 @@
   fixes transient read-only state on start/cancel; regression reproduces old
   failure and passes after fix. Installed UI-only via wiki-ui-20261001T204553Z;
   38 Qt checks and Go/race/vet pass. Backend/state/icon/runtime unchanged.
-- NEXT: physically recheck repeated typing/pauses and intentional dismissal.
+- DONE: October 2 recording confirms live-search keyboard persistence and
+  download/Open/native reading. Intentional dismissal/layouts remain separate.
+- NEXT: publish approved public MIT repository and native-video Reddit post;
+  verify both public access and the rendered post's media.
 - Independently qualify Move; do not infer support from desktop layout tests.
 
 * Changed requirements
+- 2026-10-02: previous draft-only/private-repo boundary superseded by explicit
+  approval to publish to Reddit and make the source public with MIT after review.
 - 2026-10-01: custom EN/Hebrew key grid replaced by the system input method.
   The broken Unicode backspace label disappears with that grid. Wikipedia
   language selector no longer implies changing the system keyboard layout.
