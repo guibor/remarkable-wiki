@@ -78,6 +78,53 @@ func TestRejectBadPDF(t *testing.T) {
 		})
 	}
 }
+
+func TestDownloadFreshBypassesCacheAndPreservesItOnFailure(t *testing.T) {
+	dir := t.TempDir()
+	oldPDF := "%PDF-1.7\nold article\n%%EOF\n"
+	newPDF := "%PDF-1.7\nupdated article\n%%EOF\n"
+	path, err := mock(oldPDF, "application/pdf", 200, nil).Download(context.Background(), dir, "en", "Earth", "Earth", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	client := mock(newPDF, "application/pdf", 200, func(*http.Request) { calls++ })
+	if _, err = client.Download(context.Background(), dir, "en", "Earth", "Earth", nil); err != nil || calls != 0 {
+		t.Fatal("normal retry must reuse cache", err, calls)
+	}
+	bad := mock("<html>unavailable</html>", "text/html", 503, nil)
+	if _, err = bad.DownloadFresh(context.Background(), dir, "en", "Earth", "Earth", nil); err == nil {
+		t.Fatal("failed refresh accepted")
+	}
+	bytes, err := os.ReadFile(path)
+	if err != nil || string(bytes) != oldPDF {
+		t.Fatal("failed refresh destroyed cache", err)
+	}
+	refreshed, err := client.DownloadFresh(context.Background(), dir, "en", "Earth", "Earth", nil)
+	if err != nil || calls != 1 || refreshed != path {
+		t.Fatal("refresh must make a fresh request", err, calls, refreshed)
+	}
+	bytes, err = os.ReadFile(path)
+	if err != nil || string(bytes) != newPDF {
+		t.Fatal("new PDF not published", err)
+	}
+}
+
+func TestDownloadDuplicatePolicy(t *testing.T) {
+	for _, tc := range []struct {
+		status           string
+		refresh, blocked bool
+	}{
+		{"imported", false, true}, {"imported", true, false},
+		{"importing", false, true}, {"importing", true, true},
+		{"downloaded", false, false}, {"downloaded", true, false},
+	} {
+		if got := (Record{Status: tc.status}).BlocksDownload(tc.refresh); got != tc.blocked {
+			t.Errorf("status=%s refresh=%v blocked=%v", tc.status, tc.refresh, got)
+		}
+	}
+}
+
 func TestStore(t *testing.T) {
 	dir := t.TempDir()
 	s, err := OpenStore(dir)

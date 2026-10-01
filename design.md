@@ -66,6 +66,21 @@ and AppLoad launcher. Opening hides the launcher and closes only this app; it
 does not patch navigation or restart anything. A missing route leaves the PDF
 saved and tells the user its location rather than guessing by title.
 
+`refreshSelected()` adds an explicit Download again action to completed or
+already-imported article cards, including legacy records without native IDs.
+It snapshots the original article key/language, independently of search-box
+edits, and uses the currently selected save destination. `Record.BlocksDownload`
+still blocks normal duplicate downloads and all uncertain/in-progress imports;
+only an explicit refresh bypasses completed-history suppression. `DownloadFresh`
+uses the same validated atomic download path as `Download` but bypasses the
+app-owned cache, making a new Wikimedia request. Server-side rendering/caching
+remains Wikimedia's responsibility. Failed downloads leave the previous cache
+and history intact; only a successful validated download replaces the app's
+latest per-article record. It is imported through the normal native pipeline as
+a new document: no existing PDF, annotation or library metadata is overwritten.
+The latest successful import becomes the Open PDF target. v0.2.2 requires
+backend protocol 4 so UI-only installation cannot silently ignore refresh.
+
 `scripts/build.sh` produces a static arm64 backend and a binary Qt resource.
 The AppLoad manifest loads those without any new shared library or QMD patch.
 Installation is isolated to the new app directory after model/firmware/hash
@@ -116,3 +131,14 @@ together. The staged backend found 35 live folders read-only. Before/after
 state hash, icon, editor PID/restarts/drop-ins and root mode match. All 19 UI
 checks and Go/race/vet pass; actual chosen-folder import and quick-open remain
 physical acceptance steps. See the folder/open deployment log for hashes.
+
+v0.2.1 transaction `wiki-ui-20261001T154340Z` installed the native-ID fix with
+app history/icon unchanged, editor PID 861536, zero restarts, identical drop-ins
+and read-only root. Twenty Qt checks and Go/race/vet passed. Real native-ID
+resolution and the physical Open action remain separate acceptance gates.
+
+v0.2.2 transaction `wiki-ui-20261001T154740Z` installed explicit refresh with
+the same editor PID/restarts/drop-ins/root mode and unchanged app state/icon.
+Twenty-three Qt checks and Go/race/vet pass; the desktop ready-card render shows
+Open PDF as the primary action and Download again as a separate secondary row.
+No refresh/import was triggered by deployment; physical acceptance is pending.

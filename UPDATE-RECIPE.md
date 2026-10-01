@@ -21,6 +21,12 @@ User refreshes AppLoad's list and opens Wikipedia.
 
 ## Existing app / later OS
 
+v0.2.2 adds explicit Download again with **backendProtocol 4**. Use the same full
+app update while Wikipedia is closed. Preserve state and cache. Check that an
+already-imported article offers refresh, an uncertain import does not, and a
+refresh imports a new copy into the current destination without altering the
+old copy/annotations. Open PDF must target the newly imported copy.
+
 v0.2.1 corrects the missing Open PDF button using native library-ID signals and
 source-PDF hash verification; it requires **backendProtocol 3**. Use the full
 `scripts/update-pro.sh VERIFIED_IP` path while Wikipedia is closed, not the

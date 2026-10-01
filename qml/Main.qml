@@ -32,6 +32,9 @@ Rectangle {
     property string savedDocumentId: ""
     property string savedDocumentTitle: ""
     property string savedToken: ""
+    property var selectedPage: null
+    property string selectedLanguage: "en"
+    property bool canRefresh: false
     property bool historyPending: false
     property var importCandidates: []
     property int resolveAttempts: 0
@@ -56,13 +59,20 @@ Rectangle {
         requestId++; busy = true; keyboardOpen = false
         status = "Searching Wikipedia…"; request("search", {query: query.text})
     }
-    function download(page) {
+    function download(page, refresh, articleLanguage) {
         if (!ready || busy || historyPending || !importerAvailable) return
+        selectedPage = page; selectedLanguage = articleLanguage || resultsLanguage
+        canRefresh = false; savedToken = ""
+        resolveTimer.stop(); historyTimeout.stop()
         requestId++; busy = true; keyboardOpen = false
         transferPhase = "preparing"; transferProgress = -1
         savedDocumentId = ""; savedDocumentTitle = ""
         importTitle = page.title; status = "Preparing PDF: " + page.title
-        request("download", {page: page, language: resultsLanguage})
+        request("download", {page: page, language: selectedLanguage, refresh: refresh === true})
+    }
+    function refreshSelected() {
+        if (!canRefresh || !selectedPage) return
+        download(selectedPage, true, selectedLanguage)
     }
     function openFolders() {
         if (!ready || busy || historyPending) return
@@ -121,6 +131,7 @@ Rectangle {
         if (!importing || !matches(url)) return
         importTimeout.stop(); importing = false; busy = false
         transferPhase = "complete"; transferProgress = 1
+        canRefresh = true
         // Firmware exposes shared_ptr<Document>, not a QML entry wrapper.
         // Use Library.entryImported IDs, verified against our source PDF.
         savedDocumentId = ""
@@ -230,6 +241,7 @@ Rectangle {
                 catch (e) { root.failed(m.url); console.log("Wiki: import invocation failed: " + e) }
             } else if (m.kind === "error" || m.kind === "existing") {
                 root.busy = false; root.importing = false; root.status = m.message
+                if (m.kind === "existing") root.canRefresh = m.canRefresh === true
                 if (root.transferPhase === "complete") {
                     root.historyPending = false; resolveTimer.stop(); historyTimeout.stop()
                 } else if (m.kind === "existing" && m.documentId) {
@@ -396,6 +408,22 @@ Rectangle {
                     visible: root.transferPhase === "downloading" && root.transferProgress >= 0
                     Layout.fillWidth: true; height: 12 * root.u; color: "white"; border.color: "#777777"
                     Rectangle { height: parent.height; width: parent.width * root.transferProgress; color: "#171717" }
+                }
+                RowLayout {
+                    visible: root.canRefresh && !!root.selectedPage && (root.transferPhase === "complete" || root.transferPhase === "existing")
+                    Layout.fillWidth: true; spacing: 18 * root.u
+                    WikiButton {
+                        objectName: "wiki-refresh-pdf"
+                        text: "Download again"; textSize: 23 * root.u
+                        Layout.preferredWidth: 240 * root.u; Layout.preferredHeight: 66 * root.u
+                        enabled: root.ready && !root.busy && !root.historyPending
+                        onClicked: root.refreshSelected()
+                    }
+                    Text {
+                        text: "Fetch a fresh PDF. Keeps the old copy and your annotations."
+                        textFormat: Text.PlainText; font.pixelSize: 20 * root.u
+                        Layout.fillWidth: true; wrapMode: Text.Wrap; color: "#555555"
+                    }
                 }
             }
         }

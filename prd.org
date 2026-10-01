@@ -22,6 +22,11 @@
 - Open PDF must remain visible after native import even when the callback's
   document object is opaque. Resolve the real native ID, verify the exact PDF,
   and persist it for subsequent opens; do not infer IDs from titles.
+- Offer an explicit Download again action for an already imported article,
+  including legacy history with no recorded native ID. Fetch from Wikipedia
+  again rather than reusing the app cache; import a new copy into the current
+  destination. Preserve the old document and annotations. Never refresh an
+  unresolved in-progress import or automatically duplicate a saved article.
 - New PDFs follow normal device sync policy; this is not a
   cloud-exclusion feature. No claims of offline search or local PDF rendering.
 - AppLoad entry, self-contained app payload, preserve all other installed apps.
@@ -42,11 +47,19 @@
 - NEXT: physical chosen-folder import and Open PDF acceptance. Publication and repository
   visibility changes require a separate decision.
 - v0.2.0 physical Open check FAILED: button hidden by opaque native callback.
-  v0.2.1 fix built/tested; installation awaits closing Wikipedia on the Pro.
-  Then require real ID-verification log and physical Open acceptance.
+  v0.2.1 fix installed via wiki-ui-20261001T154340Z after the user closed the
+  app. State/icon/editor runtime unchanged. Real ID-verification log and
+  physical Open acceptance remain pending.
+- DONE: v0.2.2 explicit refresh installed on Pro via wiki-ui-20261001T154740Z;
+  23 Qt checks and Go/race/vet pass, state/icon/editor runtime unchanged.
+- NEXT: physical fresh download/native import/Open while the older PDF stays
+  intact; no actual refresh/import was triggered by the installer.
 - Independently qualify Move; do not infer support from desktop layout tests.
 
 * Changed requirements
+- 2026-10-01: previously imported articles were always blocked from downloading
+  again. Retain this default guard but add a user-triggered refresh/new-copy
+  action; an uncertain import still cannot be bypassed.
 - 2026-10-01: physical v0.2.0 check found Open PDF missing. The mock exposed an
   ID that the real native shared_ptr callback does not; replaced that assumption
   with native library signals plus PDF-byte/parent verification.

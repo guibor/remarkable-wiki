@@ -82,6 +82,37 @@ TestCase {
         receive({kind: "resolved", id: app.requestId, token: "late-token", documentId: id})
         verify(findChild(app, "wiki-open-pdf").enabled)
     }
+    function test_refresh_legacy_import_requests_fresh_pdf_in_original_language() {
+        seedResults(); app.download(app.results[0])
+        receive({kind: "existing", id: app.requestId, message: "Already added", documentId: "", canRefresh: true})
+        let refresh = findChild(app, "wiki-refresh-pdf")
+        verify(refresh.visible); verify(refresh.enabled)
+        verify(!findChild(app, "wiki-open-pdf").visible)
+        app.language = "he"; app.resultsLanguage = "he"
+        refresh.clicked()
+        let sent = findChild(app, "wiki-endpoint").sent
+        let request = sent[sent.length - 1]
+        compare(request.action, "download"); compare(request.refresh, true)
+        compare(request.language, "en"); compare(request.page.key, "Earth")
+        verify(app.busy); verify(!refresh.visible)
+        compare(app.savedDocumentId, ""); compare(app.savedToken, "")
+    }
+    function test_existing_verified_pdf_offers_open_and_explicit_refresh() {
+        seedResults(); app.download(app.results[0])
+        receive({kind: "existing", id: app.requestId, message: "Already added", documentId: "old-id", title: "Earth", token: "earth-token", destination: {id: "", name: "My files"}, canRefresh: true})
+        verify(findChild(app, "wiki-open-pdf").visible)
+        verify(findChild(app, "wiki-refresh-pdf").visible)
+        compare(app.savedDocumentId, "old-id")
+        app.historyPending = true
+        verify(!findChild(app, "wiki-refresh-pdf").enabled)
+        app.refreshSelected(); verify(!app.busy)
+    }
+    function test_uncertain_import_does_not_offer_refresh() {
+        seedResults(); app.download(app.results[0])
+        receive({kind: "existing", id: app.requestId, message: "Import started earlier", canRefresh: false})
+        verify(!findChild(app, "wiki-refresh-pdf").visible)
+        app.refreshSelected(); verify(!app.busy)
+    }
     function test_folder_selection_preserves_results_and_waits_for_save() {
         seedResults(); compare(app.destination.name, "My files")
         app.openFolders(); verify(app.folderPickerOpen); verify(app.busy)
@@ -220,6 +251,7 @@ TestCase {
         wait(100); grabImage(app).save("/tmp/remarkable-wiki-downloading.png")
         app.transferPhase = "complete"; app.savedDocumentId = "example-document"; app.savedDocumentTitle = "Earth"
         app.status = "Added to My files / Reading: Earth"; app.busy = false
+        app.selectedPage = {title: "Earth", key: "Earth"}; app.canRefresh = true
         wait(100); grabImage(app).save("/tmp/remarkable-wiki-ready.png")
     }
 }

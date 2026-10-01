@@ -28,6 +28,20 @@ Verified IDs are saved, so selecting an already-imported article can offer Open
 without importing another copy. Older imports without a recorded ID still
 remain available in the normal library; the app will not guess by title.
 
+### Refresh an article you've already downloaded
+
+Select it again with **↓ PDF**, then tap **Download again** in its status card.
+That action also appears after a new import finishes. It makes a fresh request
+to Wikipedia, bypassing the app's downloaded-PDF cache, and imports a **new copy**
+into the current **Save to** folder. Tap **Open PDF** when the new copy is ready.
+Your earlier PDF and all its annotations remain untouched; delete that older
+copy yourself only if you no longer want it. Wikipedia controls how up-to-date
+its generated PDF is, so a fresh request can still return the same content.
+
+Refresh also works for articles downloaded by older app versions that did not
+save an Open PDF shortcut. Normal selection does not automatically duplicate
+anything. An import whose outcome is still uncertain cannot be refreshed.
+
 ### Choose a folder
 
 Under the search box, **Save to: My files → Change** opens the folder picker.
@@ -61,7 +75,7 @@ only its cached source PDF. An unresolved ID retains that cache for verification
 
 | Target | Status |
 | --- | --- |
-| Paper Pro, 3.29.0.148, AppLoad 0.6.0 | Base search/import flow confirmed by the owner. v0.2.0 folders, transfer panel and Open PDF installed and covered by tests; physical recheck pending |
+| Paper Pro, 3.29.0.148, AppLoad 0.6.0 | Base search/import flow confirmed by the owner. v0.2.2 installed with the Open PDF fix and explicit refresh; 23 UI checks and Go/race/vet pass. Physical quick-open/refresh recheck pending |
 | Paper Pro Move | Responsive UI covered by desktop mocks; not installed or device-qualified |
 | Other firmware/devices | Not yet qualified |
 

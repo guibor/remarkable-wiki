@@ -178,6 +178,15 @@ func ValidPDF(path string) bool {
 
 // Download never publishes partial/non-PDF content and never writes xochitl data.
 func (c *Client) Download(ctx context.Context, dir, lang, key, title string, progress func(int64, int64)) (string, error) {
+	return c.download(ctx, dir, lang, key, title, progress, false)
+}
+
+// DownloadFresh bypasses only our PDF cache. Existing library documents are never touched.
+func (c *Client) DownloadFresh(ctx context.Context, dir, lang, key, title string, progress func(int64, int64)) (string, error) {
+	return c.download(ctx, dir, lang, key, title, progress, true)
+}
+
+func (c *Client) download(ctx context.Context, dir, lang, key, title string, progress func(int64, int64), fresh bool) (string, error) {
 	if strings.TrimSpace(key) == "" || len(key) > 1024 {
 		return "", errors.New("invalid article key")
 	}
@@ -190,7 +199,7 @@ func (c *Client) Download(ctx context.Context, dir, lang, key, title string, pro
 		return "", err
 	}
 	path := filepath.Join(folder, filename(title))
-	if ValidPDF(path) {
+	if !fresh && ValidPDF(path) {
 		return path, nil
 	}
 	resp, err := c.get(ctx, address)

@@ -22,6 +22,7 @@ type Request struct {
 	Token         string    `json:"token"`
 	DestinationID string    `json:"destinationId"`
 	CandidateIDs  []string  `json:"candidateIds"`
+	Refresh       bool      `json:"refresh"`
 }
 type operation struct {
 	request     Request
@@ -222,12 +223,12 @@ func run() error {
 				destination := wiki.RootDestination()
 				if r.Action == "download" {
 					token := wiki.Key(r.Language, r.Page.Key)
-					if rec, ok := store.Records[token]; ok && (rec.Status == "imported" || rec.Status == "importing") {
-						message := "Already added to " + rec.Destination.Name + ". Changing Save to does not move existing PDFs."
+					if rec, ok := store.Records[token]; ok && rec.BlocksDownload(r.Refresh) {
+						message := "Already added to " + rec.Destination.Name + ". Download again to fetch a fresh copy; the old PDF and annotations stay unchanged."
 						if rec.Status == "importing" {
 							message = "Import was started earlier. Check My files before downloading again."
 						}
-						send(map[string]any{"kind": "existing", "id": r.ID, "message": message, "documentId": rec.DocumentID, "title": rec.Title, "destination": rec.Destination, "token": token})
+						send(map[string]any{"kind": "existing", "id": r.ID, "message": message, "documentId": rec.DocumentID, "title": rec.Title, "destination": rec.Destination, "token": token, "canRefresh": rec.Status == "imported"})
 						continue
 					}
 					var e error
@@ -245,7 +246,11 @@ func run() error {
 					if r.Action == "search" {
 						o.pages, o.err = client.Search(job, r.Language, r.Query)
 					} else {
-						o.path, o.err = client.Download(job, dir, r.Language, r.Page.Key, r.Page.Title, func(n, total int64) { send(map[string]any{"kind": "progress", "id": r.ID, "bytes": n, "total": total}) })
+						download := client.Download
+						if r.Refresh {
+							download = client.DownloadFresh
+						}
+						o.path, o.err = download(job, dir, r.Language, r.Page.Key, r.Page.Title, func(n, total int64) { send(map[string]any{"kind": "progress", "id": r.ID, "bytes": n, "total": total}) })
 					}
 					select {
 					case out <- o:
@@ -316,8 +321,14 @@ func run() error {
 			}
 			r := o.request
 			token := wiki.Key(r.Language, r.Page.Key)
+			previous, existed := store.Records[token]
 			store.Records[token] = wiki.Record{Language: r.Language, Key: r.Page.Key, Title: r.Page.Title, Path: o.path, Status: "downloaded", Destination: o.destination}
 			if e := store.Save(); e != nil {
+				if existed {
+					store.Records[token] = previous
+				} else {
+					delete(store.Records, token)
+				}
 				errmsg(r.ID, e)
 				continue
 			}

@@ -38,8 +38,19 @@ notifications, wrong parent, deleted PDFs, invalid IDs and ambiguity.
 
 ## Deployment status
 
-Built but not installed. Wikipedia remained open at backend PID 1305351 on
-the final read-only check. The user was asked to close only Wikipedia and
-leave the Pro awake; no loaded resource or running app was overwritten.
-No device mutation or editor restart occurred in this turn. Next: guarded
-full app update, then real ID-resolution and physical Open acceptance.
+Initially deferred because Wikipedia remained open at backend PID 1305351.
+The user confirmed it was closed and requested staying on main. The guarded
+full update installed v0.2.1 as `wiki-ui-20261001T154340Z`; local verified archive
+and receipts are in `.cache/receipts/wiki-ui-20261001T154340Z/`, with the matching
+on-device backup under `/home/root/.codex-backups/`.
+
+Installed hashes:
+- manifest: `37773c73495bc7ae38b246065aeb3c9ab920edbcf678ece5c0d6ce314331f138`
+- resource: `2f2c0da618497de00470e9bc3b17cd28f93680d5a5c597e8c7ada4aef2008cdc`
+- backend: `413efe936c5dde3226bb31a4f2cbac6300362aebf2f6e1540b77d1f8555c307b`
+
+State and icon hashes unchanged. Staged backend enumerated 35 folders read-only.
+Editor PID 861536, zero restarts, runtime drop-ins and read-only root unchanged.
+No running app or mapped resource was overwritten. Next: real ID-resolution
+log and physical Open acceptance. The subsequent explicit-refresh request is
+tracked separately in `refresh_2026-10-01.md`.

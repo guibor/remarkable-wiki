@@ -16,6 +16,12 @@ type Record struct {
 	Destination Destination `json:"destination"`
 	DocumentID  string      `json:"documentId,omitempty"`
 }
+
+// BlocksDownload avoids accidental duplicates; an uncertain import is never bypassed.
+func (r Record) BlocksDownload(refresh bool) bool {
+	return r.Status == "importing" || (r.Status == "imported" && !refresh)
+}
+
 type Store struct {
 	Language    string            `json:"language"`
 	Records     map[string]Record `json:"records"`
