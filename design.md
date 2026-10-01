@@ -130,6 +130,8 @@ shots crop/pad only the unrelated screen-sharing footer. No synthetic UI or
 audio is added. The recording's other reader add-ons are not Wiki features.
 The Reddit announcement uses a native video attachment for feed visibility,
 with Self-Promotion flair and the public MIT repository's installation link.
+The media is public on GitHub; the Reddit copy is currently a saved draft,
+pending the browser's file-upload permission. Saving is not publication.
 
 `scripts/build.sh` produces a static arm64 backend and a binary Qt resource.
 The AppLoad manifest loads those without any new shared library or QMD patch.

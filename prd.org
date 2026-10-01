@@ -85,8 +85,10 @@
   38 Qt checks and Go/race/vet pass. Backend/state/icon/runtime unchanged.
 - DONE: October 2 recording confirms live-search keyboard persistence and
   download/Open/native reading. Intentional dismissal/layouts remain separate.
-- NEXT: publish approved public MIT repository and native-video Reddit post;
-  verify both public access and the rendered post's media.
+- DONE: public MIT GitHub repository, README animation and 28.6-second video;
+  unauthenticated repository and animation requests return HTTP 200.
+- NEXT: attach video and publish the saved Reddit draft. Chrome upload helper
+  requires file-URL access; owner asked to enable it. No text-only post sent.
 - Independently qualify Move; do not infer support from desktop layout tests.
 
 * Changed requirements

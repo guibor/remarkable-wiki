@@ -34,5 +34,21 @@ for feed media. Autoplay remains subject to each reader's Reddit settings.
 The OAuth helper has no configured Reddit app credential; use the existing
 signed-in browser account without requesting passwords or creating new scopes.
 
-Publication status and final URLs will be added after verification. No tablet
-files, settings, services, or app payloads changed for this publication work.
+## Verified outcome
+
+- Commit `2717885` pushed to main. Repository visibility changed to PUBLIC with
+  explicit owner approval; GitHub API reports MIT. Unauthenticated requests to
+  the repository and README GIF both return HTTP 200.
+- Public source: https://github.com/guibor/remarkable-wiki
+- MP4: H.264, 1038x1380, 28.6 seconds, 591760 bytes, no audio. GIF: 520px wide,
+  looping, approximately 723 KiB. Contact sheet visually inspected.
+- Shell syntax and `git diff --check` pass. This is media/documentation-only;
+  the app code and previously passing 38 UI checks are unchanged.
+- Reddit draft saved with complete title/body and Self-Promotion flair, not
+  published. Video attachment failed because the ChatGPT Chrome extension lacks
+  Allow access to file URLs. Normal-picker fallback did not resolve it; no
+  extension/security permission changed. Owner asked to enable the setting.
+- The composer also reported that its reCAPTCHA service could not connect;
+  no challenge was solved. Recheck after upload access is fixed.
+
+No tablet files, settings, services, or app payloads changed for this work.

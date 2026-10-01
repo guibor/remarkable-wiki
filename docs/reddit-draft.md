@@ -1,8 +1,11 @@
 # Reddit announcement
 
 Destination: r/RemarkableTablet, flair **Self-Promotion**. Owner approved posting
-and public MIT source on October 2, 2026. Publication receipt belongs below
-after the live post is verified.
+and public MIT source on October 2, 2026. GitHub is now public under MIT.
+Reddit text and flair are saved in the owner's account, but **not posted**:
+native video upload is blocked by the Chrome extension's file-URL permission.
+The owner has been asked to enable that permission. Resume the existing draft
+rather than creating a duplicate; attach video before publishing.
 
 ## Media
 
