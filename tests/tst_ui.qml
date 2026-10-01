@@ -9,9 +9,81 @@ TestCase {
     visible: true
     width: 1000; height: 1350
     Component { id: factory; Main {} }
+    QtObject {
+        id: navigatorMock
+        property string lastRoute: ""
+        property var lastArguments: ({})
+        function open(route, args) { lastRoute = route; lastArguments = args }
+    }
+    Component {
+        id: readerFactory
+        Item {
+            property var windowNavigator: navigatorMock
+            property bool documentViewActive: false
+            function onOpened(configuration) {}
+        }
+    }
+    Component { id: launcherFactory; Item { property url source: "qrc:/appload/qml/appload.qml" } }
     property var app
     function init() { app = createTemporaryObject(factory, this, {width: 1000, height: 1350}); verify(app) }
     function test_import_available() { verify(app.importerAvailable) }
+    function test_open_requires_native_success_and_opens_exact_document() {
+        let host = createTemporaryObject(readerFactory, this)
+        let launcher = createTemporaryObject(launcherFactory, this)
+        let closed = false; app.close.connect(function() { closed = true })
+        app.ready = true; app.download({title: "Earth", key: "Earth"})
+        verify(findChild(app, "wiki-transfer-panel").visible)
+        verify(!findChild(app, "wiki-open-pdf").visible)
+        receive({kind: "progress", id: app.requestId, bytes: 512, total: 1024})
+        compare(app.transferProgress, 0.5); compare(app.transferPhase, "downloading")
+        receive({kind: "downloaded", id: app.requestId, token: "earth-token", title: "Earth"})
+        verify(!findChild(app, "wiki-open-pdf").visible)
+        receive({kind: "import", id: app.requestId, url: "file:///tmp/article.pdf", destination: {id: "folder-one", name: "My files / Reading"}})
+        DocumentImporter.imported({id: "wrong-document"}, null, "file:///tmp/other.pdf")
+        compare(app.savedDocumentId, "")
+        DocumentImporter.imported({id: "exact-native-document-id"}, null, "file:///tmp/article.pdf")
+        compare(app.transferPhase, "complete"); verify(findChild(app, "wiki-open-pdf").visible)
+        verify(!findChild(app, "wiki-open-pdf").enabled)
+        receive({kind: "recorded", id: app.requestId, token: "earth-token", status: "imported"})
+        verify(findChild(app, "wiki-open-pdf").enabled)
+        app.openSaved()
+        compare(navigatorMock.lastRoute, "legacydevice/window/main")
+        compare(navigatorMock.lastArguments.documentId, "exact-native-document-id")
+        verify(!launcher.visible); verify(closed)
+    }
+    function test_open_failure_keeps_saved_pdf_and_app_available() {
+        app.savedDocumentId = "a-document"; app.importDestination = {id: "", name: "My files"}
+        app.openSaved()
+        verify(app.status.indexOf("shortcut is unavailable") >= 0)
+        compare(app.savedDocumentId, "a-document")
+    }
+    function test_folder_selection_preserves_results_and_waits_for_save() {
+        seedResults(); compare(app.destination.name, "My files")
+        app.openFolders(); verify(app.folderPickerOpen); verify(app.busy)
+        receive({kind: "folders", id: app.requestId, folders: [{id: "", name: "My files"}, {id: "folder-one", name: "My files / Reading"}]})
+        verify(!app.busy); compare(app.folders.length, 2)
+        app.chooseFolder("folder-one"); verify(app.busy)
+        compare(app.destination.id, "")
+        receive({kind: "destination", id: app.requestId, destination: {id: "folder-one", name: "My files / Reading"}})
+        verify(!app.busy); verify(!app.folderPickerOpen)
+        compare(app.destination.id, "folder-one"); compare(app.results[0].title, "Earth")
+    }
+    function test_import_uses_download_destination_not_changed_preference() {
+        app.destination = {id: "different-folder", name: "Elsewhere"}
+        app.importTitle = "Earth"
+        receive({kind: "import", id: app.requestId, url: "file:///tmp/article.pdf", destination: {id: "chosen-folder", name: "My files / Reading"}})
+        compare(DocumentImporter.lastParent, "chosen-folder")
+        DocumentImporter.imported(null, null, "file:///tmp/article.pdf")
+        compare(app.status, "Added to My files / Reading: Earth")
+    }
+    function test_folder_save_error_keeps_previous_destination() {
+        seedResults(); app.openFolders()
+        receive({kind: "error", id: app.requestId, message: "Cannot read library"})
+        verify(!app.busy); verify(app.folderPickerOpen)
+        app.chooseFolder("")
+        receive({kind: "error", id: app.requestId, message: "Cannot save preference"})
+        verify(!app.busy); verify(app.folderPickerOpen); compare(app.destination.id, "")
+    }
     function test_request_requires_query() { app.ready = true; app.search(); verify(!app.busy) }
     function test_search_and_cancel_ready() {
         app.ready = true
@@ -114,5 +186,15 @@ TestCase {
         wait(100); let second = grabImage(app); verify(second.width > 0); second.save("/tmp/remarkable-wiki-results.png")
         app.keyboardOpen = true
         wait(100); let third = grabImage(app); verify(third.width > 0); third.save("/tmp/remarkable-wiki-results-keyboard.png")
+        app.folderPickerOpen = true; app.status = "Choose where new PDFs will be saved."
+        app.folders = [{id: "one", name: "My files / Reading"}, {id: "two", name: "My files / Reading / Wikipedia"}, {id: "three", name: "My files / לימוד"}]
+        wait(100); grabImage(app).save("/tmp/remarkable-wiki-folders.png")
+        app.folderPickerOpen = false; app.keyboardOpen = false
+        app.transferPhase = "downloading"; app.transferProgress = 0.6; app.importTitle = "Earth"
+        app.status = "Downloading PDF · 2.6 MB / 4.4 MB"; app.busy = true
+        wait(100); grabImage(app).save("/tmp/remarkable-wiki-downloading.png")
+        app.transferPhase = "complete"; app.savedDocumentId = "example-document"; app.savedDocumentTitle = "Earth"
+        app.status = "Added to My files / Reading: Earth"; app.busy = false
+        wait(100); grabImage(app).save("/tmp/remarkable-wiki-ready.png")
     }
 }

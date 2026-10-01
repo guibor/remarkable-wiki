@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 import QtQuick.Layouts
 import net.asivery.AppLoad 1.0
 import xofm.libs.library
@@ -22,6 +23,16 @@ Rectangle {
     property string submittedLanguage: "en"
     property string resultsQuery: ""
     property string resultsLanguage: "en"
+    property var destination: ({id: "", name: "My files"})
+    property var importDestination: ({id: "", name: "My files"})
+    property bool folderPickerOpen: false
+    property var folders: []
+    property string transferPhase: ""
+    property real transferProgress: -1
+    property string savedDocumentId: ""
+    property string savedDocumentTitle: ""
+    property string savedToken: ""
+    property bool historyPending: false
     property string importUrl: ""
     property string importToken: ""
     property string importTitle: ""
@@ -38,6 +49,7 @@ Rectangle {
     function search() {
         if (!ready || busy || query.text.trim().length === 0) return
         submittedQuery = query.text.trim(); submittedLanguage = language
+        transferPhase = ""
         query.focus = false; root.forceActiveFocus()
         requestId++; busy = true; keyboardOpen = false
         status = "Searching Wikipedia…"; request("search", {query: query.text})
@@ -45,17 +57,67 @@ Rectangle {
     function download(page) {
         if (!ready || busy || !importerAvailable) return
         requestId++; busy = true; keyboardOpen = false
+        transferPhase = "preparing"; transferProgress = -1
+        savedDocumentId = ""; savedDocumentTitle = ""
         importTitle = page.title; status = "Preparing PDF: " + page.title
         request("download", {page: page, language: resultsLanguage})
+    }
+    function openFolders() {
+        if (!ready || busy) return
+        query.focus = false; root.forceActiveFocus(); keyboardOpen = false
+        folderPickerOpen = true; busy = true; requestId++
+        status = "Loading folders…"; request("folders")
+    }
+    function chooseFolder(id) {
+        if (busy) return
+        busy = true; requestId++; status = "Saving destination…"
+        request("set-destination", {destinationId: id})
     }
     function matches(url) {
         try { return importUrl.length > 0 && decodeURIComponent(String(url)) === decodeURIComponent(importUrl) }
         catch (_) { return false }
     }
+    function readerHost() {
+        // AppLoad windows are siblings of the stock main view. Locate that
+        // existing view without patching it or creating a new native navigator.
+        let top = root.Window.window ? root.Window.window.contentItem : root
+        if (top === root) while (top.parent) top = top.parent
+        let queue = [top], visited = 0, host = null, launcher = null
+        while (queue.length && visited++ < 3000) {
+            let node = queue.shift()
+            if (node === root) continue
+            if (node.windowNavigator && typeof node.windowNavigator.open === "function"
+                    && typeof node.onOpened === "function" && node.documentViewActive !== undefined) host = node
+            if (node.source && String(node.source).indexOf("/appload/qml/appload.qml") >= 0) launcher = node
+            if (host && launcher) break
+            let children = node.children || []
+            for (let i = 0; i < children.length; i++) queue.push(children[i])
+        }
+        return {host: host, launcher: launcher}
+    }
+    function openSaved() {
+        if (!savedDocumentId || busy || historyPending) return
+        let target = readerHost()
+        if (!target.host) {
+            status = "PDF saved. Open it in " + importDestination.name + "; the reader shortcut is unavailable."
+            return
+        }
+        try {
+            target.host.windowNavigator.open("legacydevice/window/main", {documentId: savedDocumentId})
+            if (target.launcher) target.launcher.visible = false
+            root.close()
+        } catch (e) {
+            status = "PDF saved. Open it in " + importDestination.name + "; the reader shortcut could not open it."
+        }
+    }
     function imported(document, parent, url) {
         if (!importing || !matches(url)) return
         importTimeout.stop(); importing = false; busy = false
-        status = "Added to My files: " + importTitle
+        transferPhase = "complete"; transferProgress = 1
+        try { savedDocumentId = document && document.id ? String(document.id) : "" } catch (_) { savedDocumentId = "" }
+        savedDocumentTitle = importTitle; savedToken = importToken
+        historyPending = true; historyTimeout.restart()
+        status = "Added to " + importDestination.name + ": " + importTitle
         request("imported", {token: importToken})
         console.log("Wiki: native import completed")
         importUrl = ""
@@ -63,6 +125,7 @@ Rectangle {
     function failed(url) {
         if (!importing || !matches(url)) return
         importTimeout.stop(); importing = false; busy = false
+        transferPhase = "error"
         status = "The tablet could not import this PDF. Your download is saved; tap it to retry."
         request("import-failed", {token: importToken}); importUrl = ""
     }
@@ -91,34 +154,51 @@ Rectangle {
             if (type !== 100) return
             let m
             try { m = JSON.parse(contents) } catch (_) { return }
+            if (m.kind === "recorded" && m.token === root.savedToken) {
+                root.historyPending = false; historyTimeout.stop()
+            }
             if (m.kind === "ready") {
                 if (root.ready) return
                 root.ready = true; root.language = m.language || "en"; handshake.stop()
+                root.destination = m.destination || {id: "", name: "My files"}
                 root.status = root.importerAvailable ? "Search Wikipedia. Download an article to My files." : "This firmware's native PDF importer is unavailable."
                 return
             }
             if (m.id !== root.requestId) return
-            if (m.kind === "results") {
+            if (m.kind === "folders") {
+                root.folders = m.folders || []; root.busy = false
+                root.status = "Choose where new PDFs will be saved."
+            } else if (m.kind === "destination") {
+                root.destination = m.destination; root.busy = false; root.folderPickerOpen = false
+                root.status = "New PDFs will be saved to " + root.destination.name + "."
+            } else if (m.kind === "results") {
                 root.results = m.pages || []; root.busy = false
                 root.resultsQuery = root.submittedQuery; root.resultsLanguage = root.submittedLanguage
                 root.resultPage = 0; resultList.positionViewAtBeginning()
                 root.status = root.results.length ? "Choose an article to download as PDF." : "No articles found. Try a different search."
             } else if (m.kind === "progress") {
+                root.transferPhase = "downloading"
+                root.transferProgress = m.total > 0 ? Math.max(0, Math.min(1, m.bytes / m.total)) : -1
                 let amount = (m.bytes / 1048576).toFixed(1) + " MB"
                 root.status = "Downloading PDF · " + amount + (m.total > 0 ? " / " + (m.total / 1048576).toFixed(1) + " MB" : "")
             } else if (m.kind === "downloaded") {
+                root.transferPhase = "importing"
                 root.importToken = m.token; root.importTitle = m.title
                 root.importing = true
                 root.request("import-started", {token: m.token})
             } else if (m.kind === "import") {
+                root.transferPhase = "importing"
                 root.importUrl = m.url; root.importing = true
-                root.status = "Adding PDF to My files…"; importTimeout.restart()
-                try { DocumentImporter.importFromUrls([m.url], "") }
+                root.importDestination = m.destination || {id: "", name: "My files"}
+                root.status = "Adding PDF to " + root.importDestination.name + "…"; importTimeout.restart()
+                try { DocumentImporter.importFromUrls([m.url], root.importDestination.id) }
                 catch (e) { root.failed(m.url); console.log("Wiki: import invocation failed: " + e) }
             } else if (m.kind === "error" || m.kind === "existing") {
                 root.busy = false; root.importing = false; root.status = m.message
+                if (root.transferPhase !== "") root.transferPhase = m.kind === "existing" ? "existing" : "error"
             } else if (m.kind === "cancelled") {
                 root.busy = false; root.status = "Cancelled."
+                root.transferPhase = ""
             }
         }
     }
@@ -131,14 +211,23 @@ Rectangle {
         }
     }
     Timer {
+        id: historyTimeout; interval: 5000
+        onTriggered: {
+            root.historyPending = false
+            root.status = "PDF saved to " + root.importDestination.name + ". Download history could not be confirmed."
+        }
+    }
+    Timer {
         id: importTimeout; interval: 60000
         onTriggered: {
             root.busy = false
+            root.transferPhase = "uncertain"
             root.status = "Import is taking longer than expected. Check My files; no second copy will be started automatically."
         }
     }
 
     ColumnLayout {
+        visible: !root.folderPickerOpen
         anchors.fill: parent; anchors.margins: 34 * root.u; spacing: 22 * root.u
         RowLayout {
             Layout.fillWidth: true
@@ -190,11 +279,72 @@ Rectangle {
         }
         RowLayout {
             Layout.fillWidth: true
+            Text {
+                text: "Save to: " + root.destination.name
+                textFormat: Text.PlainText; Layout.fillWidth: true
+                font.pixelSize: 22 * root.u; color: "#555555"; elide: Text.ElideMiddle
+            }
+            WikiButton {
+                objectName: "wiki-change-folder"
+                text: "Change"; textSize: 22 * root.u
+                Layout.preferredWidth: 130 * root.u; Layout.preferredHeight: 55 * root.u
+                enabled: root.ready && !root.busy
+                onClicked: root.openFolders()
+            }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            visible: root.transferPhase === ""
             Text { text: root.status; textFormat: Text.PlainText; Layout.fillWidth: true; font.pixelSize: 23 * root.u; wrapMode: Text.Wrap; color: "#333333" }
             WikiButton {
                 objectName: "wiki-cancel"
                 visible: root.busy && !root.importing; text: "Cancel"; Layout.preferredWidth: 130 * root.u; Layout.preferredHeight: 60 * root.u; textSize: 23 * root.u
                 onClicked: { root.request("cancel"); root.requestId++; root.busy = false; root.status = "Cancelled." }
+            }
+        }
+        Rectangle {
+            objectName: "wiki-transfer-panel"
+            visible: root.transferPhase !== ""
+            Layout.fillWidth: true
+            implicitHeight: transferContents.implicitHeight + 40 * root.u
+            color: "#f3f3f3"; border.color: "#333333"; border.width: 2; radius: 12 * root.u
+            ColumnLayout {
+                id: transferContents
+                anchors.fill: parent; anchors.margins: 20 * root.u; spacing: 12 * root.u
+                RowLayout {
+                    Layout.fillWidth: true
+                    ColumnLayout {
+                        Layout.fillWidth: true; spacing: 8 * root.u
+                        Text {
+                            text: root.transferPhase === "complete" ? "PDF ready to read"
+                                : root.transferPhase === "importing" ? "Adding PDF to your library…"
+                                : root.transferPhase === "preparing" || root.transferPhase === "downloading" ? "Downloading PDF…"
+                                : root.transferPhase === "existing" ? "Already in your library" : "Check download"
+                            font.pixelSize: 29 * root.u; font.weight: Font.DemiBold; Layout.fillWidth: true; wrapMode: Text.Wrap
+                        }
+                        Text { text: root.savedDocumentTitle || root.importTitle; textFormat: Text.PlainText; font.pixelSize: 25 * root.u; Layout.fillWidth: true; elide: Text.ElideRight }
+                        Text { text: root.status; textFormat: Text.PlainText; font.pixelSize: 22 * root.u; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                    }
+                    WikiButton {
+                        objectName: "wiki-open-pdf"
+                        visible: root.transferPhase === "complete" && root.savedDocumentId !== ""
+                        text: "Open PDF"; primary: true; textSize: 27 * root.u
+                        Layout.preferredWidth: 185 * root.u; Layout.preferredHeight: 82 * root.u
+                        enabled: !root.busy && !root.historyPending
+                        onClicked: root.openSaved()
+                    }
+                    WikiButton {
+                        visible: root.busy && !root.importing
+                        text: "Cancel"; textSize: 23 * root.u
+                        Layout.preferredWidth: 125 * root.u; Layout.preferredHeight: 65 * root.u
+                        onClicked: { root.request("cancel"); root.requestId++; root.busy = false; root.transferPhase = ""; root.status = "Cancelled." }
+                    }
+                }
+                Rectangle {
+                    visible: root.transferPhase === "downloading" && root.transferProgress >= 0
+                    Layout.fillWidth: true; height: 12 * root.u; color: "white"; border.color: "#777777"
+                    Rectangle { height: parent.height; width: parent.width * root.transferProgress; color: "#171717" }
+                }
             }
         }
         Item {
@@ -259,5 +409,44 @@ Rectangle {
             }
         }
         Text { text: "Direct from Wikipedia · No account required"; font.pixelSize: 18 * root.u; color: "#666666"; Layout.alignment: Qt.AlignHCenter }
+    }
+    ColumnLayout {
+        visible: root.folderPickerOpen
+        anchors.fill: parent; anchors.margins: 34 * root.u; spacing: 22 * root.u
+        RowLayout {
+            Layout.fillWidth: true
+            Text { text: "Save PDFs to"; font.pixelSize: 40 * root.u; font.weight: Font.DemiBold; Layout.fillWidth: true }
+            WikiButton {
+                text: "Back"; textSize: 24 * root.u; enabled: !root.busy
+                Layout.preferredWidth: 130 * root.u; Layout.preferredHeight: 65 * root.u
+                onClicked: { root.folderPickerOpen = false; root.status = "Destination unchanged." }
+            }
+        }
+        Text {
+            text: "Choose an existing folder. This applies to new downloads only.\nCreate new folders in My files first."
+            font.pixelSize: 24 * root.u; wrapMode: Text.Wrap; Layout.fillWidth: true; color: "#555555"
+        }
+        Text { text: root.status; textFormat: Text.PlainText; font.pixelSize: 23 * root.u; wrapMode: Text.Wrap; Layout.fillWidth: true }
+        WikiButton {
+            objectName: "wiki-root-folder"
+            text: "My files (default)"; textSize: 25 * root.u; enabled: !root.busy
+            Layout.fillWidth: true; Layout.preferredHeight: 76 * root.u
+            primary: root.destination.id === ""
+            onClicked: root.chooseFolder("")
+        }
+        ListView {
+            objectName: "wiki-folders"
+            Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 12 * root.u
+            boundsBehavior: Flickable.StopAtBounds
+            model: root.folders.filter(f => f.id !== "")
+            delegate: WikiButton {
+                required property var modelData
+                width: ListView.view.width; height: 90 * root.u; textSize: 24 * root.u
+                text: modelData.name; primary: root.destination.id === modelData.id
+                wrapText: true
+                enabled: !root.busy
+                onClicked: root.chooseFolder(modelData.id)
+            }
+        }
     }
 }

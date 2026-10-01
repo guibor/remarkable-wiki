@@ -14,18 +14,20 @@ import (
 )
 
 type Request struct {
-	Action   string    `json:"action"`
-	ID       int       `json:"id"`
-	Language string    `json:"language"`
-	Query    string    `json:"query"`
-	Page     wiki.Page `json:"page"`
-	Token    string    `json:"token"`
+	Action        string    `json:"action"`
+	ID            int       `json:"id"`
+	Language      string    `json:"language"`
+	Query         string    `json:"query"`
+	Page          wiki.Page `json:"page"`
+	Token         string    `json:"token"`
+	DestinationID string    `json:"destinationId"`
 }
 type operation struct {
-	request Request
-	pages   []wiki.Page
-	path    string
-	err     error
+	request     Request
+	pages       []wiki.Page
+	path        string
+	err         error
+	destination wiki.Destination
 }
 type packet struct {
 	typ  uint32
@@ -41,6 +43,18 @@ func main() {
 }
 func run() error {
 	client := wiki.NewClient()
+	if len(os.Args) == 2 && os.Args[1] == "--check-folders" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		folders, err := wiki.ListFolders(filepath.Join(home, ".local/share/remarkable/xochitl"))
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Library folder enumeration OK: %d folders plus My files (no writes).\n", len(folders)-1)
+		return nil
+	}
 	if len(os.Args) >= 3 && os.Args[1] == "--search" {
 		pages, err := client.Search(context.Background(), "en", os.Args[2])
 		if err != nil {
@@ -71,6 +85,11 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	library := filepath.Join(home, ".local/share/remarkable/xochitl")
 	conn, err := protocol.Connect(os.Args[1])
 	if err != nil {
 		return err
@@ -107,7 +126,9 @@ func run() error {
 			cancel()
 		}
 	}()
-	hello := func() { send(map[string]any{"kind": "ready", "language": store.Language, "records": store.Records}) }
+	hello := func() {
+		send(map[string]any{"kind": "ready", "language": store.Language, "records": store.Records, "destination": store.Destination})
+	}
 	for {
 		select {
 		case p := <-in:
@@ -131,6 +152,23 @@ func run() error {
 			switch r.Action {
 			case "hello":
 				hello()
+			case "folders":
+				folders, e := wiki.ListFolders(library)
+				if e != nil {
+					errmsg(r.ID, e)
+					continue
+				}
+				send(map[string]any{"kind": "folders", "id": r.ID, "folders": folders})
+			case "set-destination":
+				if active != 0 {
+					errmsg(r.ID, fmt.Errorf("wait for the current download or search"))
+					continue
+				}
+				if e := store.SetDestination(library, r.DestinationID); e != nil {
+					errmsg(r.ID, e)
+					continue
+				}
+				send(map[string]any{"kind": "destination", "id": r.ID, "destination": store.Destination})
 			case "cancel":
 				if cancel != nil {
 					cancel()
@@ -155,22 +193,29 @@ func run() error {
 					errmsg(r.ID, e)
 					continue
 				}
+				destination := wiki.RootDestination()
 				if r.Action == "download" {
 					token := wiki.Key(r.Language, r.Page.Key)
 					if rec, ok := store.Records[token]; ok && (rec.Status == "imported" || rec.Status == "importing") {
-						message := "Already added to My files."
+						message := "Already added to " + rec.Destination.Name + ". Changing Save to does not move existing PDFs."
 						if rec.Status == "importing" {
 							message = "Import was started earlier. Check My files before downloading again."
 						}
 						send(map[string]any{"kind": "existing", "id": r.ID, "message": message})
 						continue
 					}
+					var e error
+					destination, e = wiki.ResolveDestination(library, store.Destination.ID)
+					if e != nil {
+						errmsg(r.ID, e)
+						continue
+					}
 				}
 				job, c := context.WithTimeout(ctx, 90*time.Second)
 				cancel = c
 				active = r.ID
-				go func(r Request) {
-					o := operation{request: r}
+				go func(r Request, destination wiki.Destination) {
+					o := operation{request: r, destination: destination}
 					if r.Action == "search" {
 						o.pages, o.err = client.Search(job, r.Language, r.Query)
 					} else {
@@ -180,7 +225,7 @@ func run() error {
 					case out <- o:
 					case <-ctx.Done():
 					}
-				}(r)
+				}(r, destination)
 			case "import-started", "imported", "import-failed":
 				rec, ok := store.Records[r.Token]
 				if !ok {
@@ -188,12 +233,18 @@ func run() error {
 					continue
 				}
 				if r.Action == "import-started" {
+					destination, e := wiki.ResolveDestination(library, rec.Destination.ID)
+					if e != nil {
+						errmsg(r.ID, e)
+						continue
+					}
 					if rec.Status != "downloaded" || !wiki.ValidPDF(rec.Path) {
 						errmsg(r.ID, fmt.Errorf("PDF is not ready to import"))
 						continue
 					}
 					old := rec
 					rec.Status = "importing"
+					rec.Destination = destination
 					store.Records[r.Token] = rec
 					if e := store.Save(); e != nil {
 						store.Records[r.Token] = old
@@ -201,7 +252,7 @@ func run() error {
 						continue
 					}
 					u := url.URL{Scheme: "file", Path: rec.Path}
-					send(map[string]any{"kind": "import", "id": r.ID, "url": u.String(), "token": r.Token, "title": rec.Title})
+					send(map[string]any{"kind": "import", "id": r.ID, "url": u.String(), "token": r.Token, "title": rec.Title, "destination": destination})
 				} else {
 					if rec.Status != "importing" {
 						continue
@@ -241,7 +292,7 @@ func run() error {
 			}
 			r := o.request
 			token := wiki.Key(r.Language, r.Page.Key)
-			store.Records[token] = wiki.Record{Language: r.Language, Key: r.Page.Key, Title: r.Page.Title, Path: o.path, Status: "downloaded"}
+			store.Records[token] = wiki.Record{Language: r.Language, Key: r.Page.Key, Title: r.Page.Title, Path: o.path, Status: "downloaded", Destination: o.destination}
 			if e := store.Save(); e != nil {
 				errmsg(r.ID, e)
 				continue

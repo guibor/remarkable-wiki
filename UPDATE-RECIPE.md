@@ -21,6 +21,18 @@ User refreshes AppLoad's list and opens Wikipedia.
 
 ## Existing app / later OS
 
+For **v0.2.0 folder destinations and Open PDF**, run the tests/build and close
+Wikipedia, then `RM_SSH_KEY=... bash scripts/update-pro.sh VERIFIED_IP`.
+This explicitly updates the static backend with the UI using the same verified
+backup/rollback procedure. The old app and all history/preferences are retained.
+The staged backend must pass `--check-folders` read-only enumeration before
+the swap. The native `parentId` contract is confirmed in stock 3.29.0.148
+MainView.qml (drag/drop import), and opening follows its existing
+`windowNavigator.open("legacydevice/window/main", {documentId: id})` route.
+Check a real chosen-folder import and Open PDF separately after installation.
+The manifest's `backendProtocol: 2` prevents an accidental UI-only upgrade
+against an old backend.
+
 For the v0.1.0 → v0.1.1 **UI-only** update on the existing qualified Pro, run
 `bash scripts/test.sh`, close Wikipedia, then
 `RM_SSH_KEY=... bash scripts/update-pro-ui.sh VERIFIED_IP`.

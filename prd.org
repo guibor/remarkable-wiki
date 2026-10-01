@@ -14,7 +14,12 @@
 - English default and Hebrew option; remember language, provide touch keyboard.
 - Import through the editor's existing DocumentImporter. Do not write library
   metadata, modify existing documents, patch firmware, or restart per download.
-- New PDFs enter My files and follow normal device sync policy; this is not a
+- Configurable existing destination folder, remembered across app launches;
+  default My files. Folder changes affect new downloads only. Use native import
+  with the folder ID, not filesystem moves or library metadata writes.
+- Show a prominent download/import status panel with article and progress.
+  After matching native success, offer Open PDF for that exact imported document.
+- New PDFs follow normal device sync policy; this is not a
   cloud-exclusion feature. No claims of offline search or local PDF rendering.
 - AppLoad entry, self-contained app payload, preserve all other installed apps.
 - Pro first; responsive layout for Move, but qualify/install Move independently.
@@ -27,11 +32,18 @@
 - DONE: v0.1.1 UI-only update installed on Pro; preserved backend/icon/state
   hashes, editor PID, zero restarts, drop-ins and read-only root.
 - DONE: Reddit draft and source-install/upgrade instructions prepared.
-- NEXT: obtain physical v0.1.1 keyboard acceptance. Publication and repository
+- DONE: v0.2.0 destination persistence, folder picker, prominent transfer panel
+  and exact-document Open PDF action; 19 UI checks and Go/race/vet pass.
+- DONE: v0.2.0 installed on Pro with history/icon/runtime unchanged; staged
+  backend enumerated 35 available folders read-only.
+- NEXT: physical chosen-folder import and Open PDF acceptance. Publication and repository
   visibility changes require a separate decision.
 - Independently qualify Move; do not infer support from desktop layout tests.
 
 * Changed requirements
+- 2026-10-01: previously all PDFs went to My files and required manual opening.
+  Added a saved destination-folder picker (My files remains the default), a
+  prominent transfer panel and a native-success-gated Open PDF shortcut.
 - 2026-10-01: the initial UI hid results whenever the keyboard opened. Replaced
   with persistent results and explicit Search/Enter submission, following the
   user's report of disappearing results. No live/fuzzy-search behavior required.

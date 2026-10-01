@@ -8,23 +8,25 @@ import (
 )
 
 type Record struct {
-	Language string `json:"language"`
-	Key      string `json:"key"`
-	Title    string `json:"title"`
-	Path     string `json:"path"`
-	Status   string `json:"status"`
+	Language    string      `json:"language"`
+	Key         string      `json:"key"`
+	Title       string      `json:"title"`
+	Path        string      `json:"path"`
+	Status      string      `json:"status"`
+	Destination Destination `json:"destination"`
 }
 type Store struct {
-	Language string            `json:"language"`
-	Records  map[string]Record `json:"records"`
-	dir      string
+	Language    string            `json:"language"`
+	Records     map[string]Record `json:"records"`
+	Destination Destination       `json:"destination"`
+	dir         string
 }
 
 func OpenStore(dir string) (*Store, error) {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, err
 	}
-	s := &Store{Language: "en", Records: map[string]Record{}, dir: dir}
+	s := &Store{Language: "en", Records: map[string]Record{}, Destination: RootDestination(), dir: dir}
 	b, err := os.ReadFile(filepath.Join(dir, "state.json"))
 	if errors.Is(err, os.ErrNotExist) {
 		return s, nil
@@ -41,7 +43,17 @@ func OpenStore(dir string) (*Store, error) {
 	if !validLanguage(s.Language) {
 		s.Language = "en"
 	}
+	if s.Destination.ID == "" {
+		s.Destination = RootDestination()
+	}
+	if s.Destination.ID != "" && !folderID.MatchString(s.Destination.ID) {
+		return nil, errors.New("saved destination contains an invalid folder ID")
+	}
 	for token, rec := range s.Records {
+		if rec.Destination.ID == "" {
+			rec.Destination = RootDestination()
+			s.Records[token] = rec
+		}
 		expected := filepath.Join(dir, "downloads", Key(rec.Language, rec.Key), filename(rec.Title))
 		if !validLanguage(rec.Language) || token != Key(rec.Language, rec.Key) || rec.Path != expected {
 			return nil, errors.New("download history contains an invalid app-owned path")

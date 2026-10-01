@@ -6,12 +6,14 @@
 
 - Problem: finding a Wikipedia article and reading its PDF without a computer.
 - Users: reMarkable owners with an independently qualified AppLoad installation.
-- Outcome: search on tablet, tap Download, find the PDF in My files.
+- Outcome: search on tablet, download to My files or a chosen folder, then
+  open the newly imported PDF directly in the native reader.
 
 ## Scope
 
 - In scope: direct Wikipedia search/PDF requests, English/Hebrew selection,
-  responsive e-ink UI, native document import, clear progress/errors.
+  responsive e-ink UI, native document import with remembered destination,
+  prominent progress/errors and a quick-open action after native success.
 - Out of scope: md-server, API keys, notebook-file rewriting, cloud API clients,
   firmware patches, bundled browser/PDF renderer, unattended batch scraping.
 - Success: Wikipedia PDF downloaded on device and accepted by the native library;

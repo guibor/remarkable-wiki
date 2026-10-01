@@ -16,6 +16,15 @@ normalizes plain-text results. `Download` streams to an exclusive temporary file
 checks PDF signature/size, then atomically publishes it under a safe name.
 `Store` records per-language/article status without touching notebook files.
 
+`internal/wiki/folders.go` adds read-only folder metadata enumeration. Only
+CollectionType entries with a complete non-deleted/non-trash ancestry qualify.
+`ListFolders` builds readable nested paths and disambiguates duplicate names;
+`ResolveDestination` checks a stable folder UUID, including again immediately
+before native import. `SetDestination` atomically saves the app-owned preference
+and reverts it in memory on failure. Existing state defaults to My files.
+Each download record snapshots its destination; later preference changes never
+move existing PDFs or retarget an in-progress import. No notebook content is read.
+
 `cmd/wiki-backend` implements AppLoad's two-packet SOCK_SEQPACKET protocol.
 Network operations run outside the UI. Request IDs prevent stale results from
 replacing new state. Only one operation runs at a time; cancellation interrupts
@@ -32,10 +41,21 @@ work rather than disabled/re-enabled focus transitions. Keyboard opening is an
 explicit input tap/button action, never a side effect of focus restoration.
 `download()` sends the result set's original language, even if the user has
 since changed the language selector. Once a PDF is complete, it calls the stock
-`DocumentImporter.importFromUrls([fileUrl], "")`. Completion is acknowledged
+`DocumentImporter.importFromUrls([fileUrl], destinationId)` (empty ID means
+My files). The folder picker is separate from Wikipedia results, preserves
+them, and closes only after the preference is saved. Completion is acknowledged
 only by matching native importer signals, not by a successful download alone.
 Import-in-progress persists separately so closing mid-import never triggers an
 automatic duplicate import. A timeout reports uncertainty, not false success.
+
+The transfer panel distinguishes download, native import, success and failure.
+Only the matching native `imported` signal populates the saved document ID.
+`openSaved()` waits for history acknowledgment (bounded timeout), then uses the
+existing stock main view's `windowNavigator.open` route with that exact ID.
+`readerHost()` performs a bounded visual-tree lookup for the stock main view
+and AppLoad launcher. Opening hides the launcher and closes only this app; it
+does not patch navigation or restart anything. A missing route leaves the PDF
+saved and tells the user its location rather than guessing by title.
 
 `scripts/build.sh` produces a static arm64 backend and a binary Qt resource.
 The AppLoad manifest loads those without any new shared library or QMD patch.
@@ -48,6 +68,11 @@ and verifies an off-device copy, then stages a copy of the installed app with
 only its manifest/resource replaced. A guarded two-rename swap retains the old
 folder for rollback. State, backend and icon hashes and editor runtime must
 stay unchanged. It does not deploy a rebuilt backend or restart the editor.
+For v0.2.0, `scripts/update-pro.sh` explicitly opts into a matching backend
+update through the same guard/backup transaction. `backendProtocol` in the
+manifest prevents a UI-only update from pairing the folder UI with an old
+backend. The staged backend's `--check-folders` diagnostic performs read-only
+enumeration before activation. State/icon/runtime remain unchanged by install.
 
 ## Boundaries
 
@@ -76,3 +101,9 @@ UI-only transaction `wiki-ui-20261001T112545Z` installed v0.1.1 on Pro with
 unchanged backend/icon/state hashes, PID 861536, zero restarts, identical
 drop-ins and read-only root. The dated playbook log records payload hashes and
 both backup locations. Move was not modified.
+
+v0.2.0 transaction `wiki-ui-20261001T151422Z` updated this app's UI/backend
+together. The staged backend found 35 live folders read-only. Before/after
+state hash, icon, editor PID/restarts/drop-ins and root mode match. All 19 UI
+checks and Go/race/vet pass; actual chosen-folder import and quick-open remain
+physical acceptance steps. See the folder/open deployment log for hashes.

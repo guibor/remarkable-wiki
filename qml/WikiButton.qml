@@ -5,6 +5,7 @@ Rectangle {
     property string text: ""
     property real textSize: 26
     property bool primary: false
+    property bool wrapText: false
     signal clicked()
     implicitWidth: 150
     implicitHeight: 66
@@ -24,6 +25,8 @@ Rectangle {
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight
+        wrapMode: root.wrapText ? Text.Wrap : Text.NoWrap
+        maximumLineCount: root.wrapText ? 2 : 1
     }
     MouseArea { id: mouse; anchors.fill: parent; onClicked: root.clicked() }
 }

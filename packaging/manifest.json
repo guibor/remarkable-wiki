@@ -1,7 +1,8 @@
 {
   "id": "remarkable-wiki",
   "name": "Wikipedia",
-  "version": "0.1.1",
+  "version": "0.2.0",
+  "backendProtocol": 2,
   "entry": "/ui/Main.qml",
   "loadsBackend": true,
   "supportsScaling": true,

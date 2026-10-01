@@ -6,7 +6,7 @@ Before publishing: the repository is currently private and has no public
 release. Decide whether to make it public, select a license, review the source
 for publication, replace the link placeholder below, and check the community's
 current rules/flair. Do not announce public availability until those steps are
-actually complete. Also finish the on-device v0.1.1 keyboard recheck.
+actually complete. Also finish the on-device v0.2.0 folder/Open PDF recheck.
 
 ## Title
 
@@ -26,8 +26,9 @@ That's the idea behind this little Wikipedia app. Not browsing Wikipedia on
 the reMarkable, but getting a Wikipedia article into the reader.
 
 You open it from AppLoad, search for an article, and tap the PDF button. It adds
-the article to My files, where you can read it and annotate it like any other
-PDF. That's basically it.
+the article to My files, or a folder you choose. Once it's saved, tap Open PDF
+and you're back in the normal reader, reading and annotating it like any other
+document. That's basically it.
 
 It talks directly to Wikipedia. No account, API key or server of mine in the
 middle. You do need Wi-Fi to search and download; once the PDF is there, you

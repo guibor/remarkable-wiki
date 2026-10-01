@@ -1,6 +1,7 @@
 # Wikipedia, on your reMarkable
 
-Search for an article. Tap **↓ PDF**. Read and annotate it in **My files**.
+Search for an article. Tap **↓ PDF**, then **Open PDF**. Read and annotate it
+in the native reader, saved in **My files** or a folder you choose.
 
 reMarkable Wiki is a standalone AppLoad app. The tablet talks directly to
 Wikipedia for both search and PDF downloads—no private server, md-server,
@@ -13,7 +14,22 @@ Google Drive, API key, or desktop companion is involved.
 3. Type a query using the on-screen keyboard, then tap **Search** (or press Enter).
 4. Browse the results with the page arrows and tap **↓ PDF** beside an article.
    With the keyboard open, you can also swipe within the results to see more.
-5. Wait for **Added to My files**, then close the app and open the PDF there.
+5. The status panel shows the article, download progress (when Wikipedia
+   provides the size), and the native import step.
+6. When **PDF ready to read** appears, tap **Open PDF** to leave the app and
+   open that exact newly imported document in the native reader. You can also
+   close the app and find it in the saved location shown in the panel.
+
+### Choose a folder
+
+Under the search box, **Save to: My files → Change** opens the folder picker.
+Tap an existing folder to use it for future downloads, or **My files (default)**
+to return to the library root. Nested paths are shown, and the choice is saved
+between launches on this tablet. Create any new folder in My files first.
+
+The setting does not move PDFs you've already downloaded or create duplicates
+of them. Folder IDs survive renames; a deleted or trashed destination produces
+an error asking you to choose again, rather than silently saving elsewhere.
 
 The language button switches between English and Hebrew Wikipedia and their
 keyboards. Search language is remembered. The **Keyboard** button lets you
@@ -36,7 +52,7 @@ download. Successful imports remove only the app's cached source PDF.
 
 | Target | Status |
 | --- | --- |
-| Paper Pro, 3.29.0.148, AppLoad 0.6.0 | End-to-end use confirmed by the owner; native PDF import confirmed in device log. v0.1.1 keyboard fix covered by UI tests; physical recheck pending |
+| Paper Pro, 3.29.0.148, AppLoad 0.6.0 | Base search/import flow confirmed by the owner. v0.2.0 folders, transfer panel and Open PDF installed and covered by tests; physical recheck pending |
 | Paper Pro Move | Responsive UI covered by desktop mocks; not installed or device-qualified |
 | Other firmware/devices | Not yet qualified |
 
@@ -54,7 +70,9 @@ Once imported, the PDF is a normal reMarkable document and follows your existing
 cloud-sync settings. **This is not a private/non-syncing notebook feature.**
 
 App state lives in `~/.local/share/remarkable-wiki/`, separate from the library.
-Keep `state.json` across upgrades: it records language and import outcomes.
+Keep `state.json` across upgrades: it records language, destination and import
+outcomes. Folder discovery reads local folder metadata only; folder names and
+your chosen destination are not sent to Wikipedia or another server.
 Never blindly clear an `importing` record to retry; inspect My files first.
 
 ## Installation from source
@@ -103,18 +121,21 @@ The installer requires a trusted SSH host key, pins the Pro model/firmware and
 stock editor hash, verifies the uploaded bundle, and refuses to overwrite an
 existing installation. Read [UPDATE-RECIPE.md](UPDATE-RECIPE.md) for upgrades.
 
-For a **UI-only upgrade** of an existing installation on that same qualified
+For an **upgrade** of an existing installation on that same qualified
 Paper Pro, close Wikipedia, run the tests/build above, then:
 
 ```sh
-RM_SSH_KEY=~/.ssh/your_tablet_key bash scripts/update-pro-ui.sh VERIFIED_IP
+RM_SSH_KEY=~/.ssh/your_tablet_key bash scripts/update-pro.sh VERIFIED_IP
 ```
 
-This keeps the installed backend, icon and app history byte-for-byte. It backs
+This updates the UI and backend together, keeping icon and app history intact. It backs
 up the app and state to the tablet and `.cache/receipts/` on your computer,
-verifies both copies, and updates only the UI resource and manifest. Do not use
-this script for a release that changes the backend. Refresh AppLoad, then reopen
-Wikipedia. No editor or tablet restart is needed.
+verifies both copies, and changes only this app directory. Refresh AppLoad, then
+reopen Wikipedia. No editor or tablet restart is needed.
+
+`scripts/update-pro-ui.sh` remains available for UI-only changes within the same
+backend protocol. It deliberately refuses the v0.1.x → v0.2.0 transition because
+the folder picker needs the new backend too.
 
 ### If something goes wrong
 
@@ -125,6 +146,8 @@ Wikipedia. No editor or tablet restart is needed.
   unavailable for a particular article; this app has no fallback server.
 - **Import taking too long:** check My files before retrying. A successful
   download is not proof that import completed.
+- **Saved but no reader shortcut:** the PDF remains in the location shown.
+  Open it from the normal library; do not redownload it to recover the shortcut.
 - **Installer rejects your device:** stop; the exact firmware/model has not
   been qualified by that installer. Do not remove the guard to force it.
 
@@ -135,10 +158,12 @@ Network diagnostics, without GUI or library insertion:
 ```sh
 backend/entry --search 'Earth'
 backend/entry --download 'Earth' /tmp/wiki-diagnostic
+backend/entry --check-folders
 ```
 
-The diagnostic commands use English Wikipedia. They never claim a PDF was
-imported and do not alter notebook files.
+The search/download diagnostic commands use English Wikipedia. The folder check
+reports only a count, not private folder names. None claims a PDF was imported
+or changes notebook files.
 
 ## Architecture
 
