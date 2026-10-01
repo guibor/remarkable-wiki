@@ -21,6 +21,17 @@ User refreshes AppLoad's list and opens Wikipedia.
 
 ## Existing app / later OS
 
+For the v0.1.0 → v0.1.1 **UI-only** update on the existing qualified Pro, run
+`bash scripts/test.sh`, close Wikipedia, then
+`RM_SSH_KEY=... bash scripts/update-pro-ui.sh VERIFIED_IP`.
+The script copies the installed app into staging, changes only manifest/resource,
+and preserves backend/icon/history. Its verified app+state archive is retained
+both under `.codex-backups/wiki-ui-TIMESTAMP/` and local `.cache/receipts/`.
+The previous app is retained at `previous-app` in that remote backup folder.
+It refuses an active backend/mapped resource and verifies unchanged runtime
+and state around the swap. Physical UI acceptance is still a separate step.
+For backend changes or later firmware use the complete procedure below.
+
 1. Obtain a fresh runtime/firmware inventory and read that device's maintenance
    knowledge base. Stop on mismatched firmware; do not weaken the old installer.
 2. Close Wikipedia normally and ensure its backend is no longer running. Never

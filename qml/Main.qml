@@ -18,6 +18,10 @@ Rectangle {
     property int requestId: 0
     property int resultPage: 0
     property var results: []
+    property string submittedQuery: ""
+    property string submittedLanguage: "en"
+    property string resultsQuery: ""
+    property string resultsLanguage: "en"
     property string importUrl: ""
     property string importToken: ""
     property string importTitle: ""
@@ -28,19 +32,21 @@ Rectangle {
         let payload = fields || {}
         payload.action = action
         payload.id = requestId
-        payload.language = language
+        if (!payload.language) payload.language = language
         endpoint.sendMessage(1, JSON.stringify(payload))
     }
     function search() {
         if (!ready || busy || query.text.trim().length === 0) return
-        requestId++; busy = true; keyboardOpen = false; resultPage = 0
+        submittedQuery = query.text.trim(); submittedLanguage = language
+        query.focus = false; root.forceActiveFocus()
+        requestId++; busy = true; keyboardOpen = false
         status = "Searching Wikipedia…"; request("search", {query: query.text})
     }
     function download(page) {
         if (!ready || busy || !importerAvailable) return
         requestId++; busy = true; keyboardOpen = false
         importTitle = page.title; status = "Preparing PDF: " + page.title
-        request("download", {page: page})
+        request("download", {page: page, language: resultsLanguage})
     }
     function matches(url) {
         try { return importUrl.length > 0 && decodeURIComponent(String(url)) === decodeURIComponent(importUrl) }
@@ -79,6 +85,7 @@ Rectangle {
     Component.onDestruction: unloading()
     AppLoad {
         id: endpoint
+        objectName: "wiki-endpoint"
         applicationID: "remarkable-wiki"
         onMessageReceived: (type, contents) => {
             if (type !== 100) return
@@ -93,6 +100,8 @@ Rectangle {
             if (m.id !== root.requestId) return
             if (m.kind === "results") {
                 root.results = m.pages || []; root.busy = false
+                root.resultsQuery = root.submittedQuery; root.resultsLanguage = root.submittedLanguage
+                root.resultPage = 0; resultList.positionViewAtBeginning()
                 root.status = root.results.length ? "Choose an article to download as PDF." : "No articles found. Try a different search."
             } else if (m.kind === "progress") {
                 let amount = (m.bytes / 1048576).toFixed(1) + " MB"
@@ -143,7 +152,7 @@ Rectangle {
                 text: root.language === "en" ? "EN → עברית" : "עברית → EN"
                 Layout.preferredWidth: 175 * root.u; Layout.preferredHeight: 62 * root.u; textSize: 22 * root.u
                 enabled: root.ready && !root.busy
-                onClicked: { root.language = root.language === "en" ? "he" : "en"; root.results = []; root.resultPage = 0; root.keyboardOpen = true }
+                onClicked: { root.language = root.language === "en" ? "he" : "en"; root.keyboardOpen = true }
             }
             WikiButton {
                 text: "Close"; Layout.preferredWidth: 110 * root.u; Layout.preferredHeight: 62 * root.u; textSize: 23 * root.u
@@ -161,18 +170,20 @@ Rectangle {
                     anchors.fill: parent; anchors.margins: 18 * root.u
                     verticalAlignment: TextInput.AlignVCenter
                     font.pixelSize: 30 * root.u; color: "#171717"; clip: true
-                    maximumLength: 200; selectByMouse: true; enabled: !root.busy
-                    onActiveFocusChanged: if (activeFocus) root.keyboardOpen = true
+                    maximumLength: 200; selectByMouse: true; readOnly: root.busy
+                    TapHandler { onTapped: if (!root.busy) root.keyboardOpen = true }
                     onAccepted: root.search()
                     Text { anchors.verticalCenter: parent.verticalCenter; visible: !query.text; text: root.language === "he" ? "חיפוש בוויקיפדיה" : "Search for an article"; font: query.font; color: "#777777" }
                 }
             }
             WikiButton {
+                objectName: "wiki-search"
                 text: "Search"; primary: true; Layout.preferredWidth: 145 * root.u; Layout.preferredHeight: 80 * root.u; textSize: 27 * root.u
                 enabled: root.ready && !root.busy && query.text.trim().length > 0
                 onClicked: root.search()
             }
             WikiButton {
+                objectName: "wiki-keyboard-toggle"
                 text: root.keyboardOpen ? "Hide keys" : "Keyboard"; Layout.preferredWidth: 150 * root.u; Layout.preferredHeight: 80 * root.u; textSize: 23 * root.u
                 enabled: !root.busy; onClicked: root.keyboardOpen = !root.keyboardOpen
             }
@@ -181,31 +192,44 @@ Rectangle {
             Layout.fillWidth: true
             Text { text: root.status; textFormat: Text.PlainText; Layout.fillWidth: true; font.pixelSize: 23 * root.u; wrapMode: Text.Wrap; color: "#333333" }
             WikiButton {
+                objectName: "wiki-cancel"
                 visible: root.busy && !root.importing; text: "Cancel"; Layout.preferredWidth: 130 * root.u; Layout.preferredHeight: 60 * root.u; textSize: 23 * root.u
                 onClicked: { root.request("cancel"); root.requestId++; root.busy = false; root.status = "Cancelled." }
             }
         }
         Item {
             Layout.fillWidth: true; Layout.fillHeight: true
-            Column {
-                width: parent.width
-                visible: !root.keyboardOpen
-                spacing: 0
-                Repeater {
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 10 * root.u
+                Text {
+                    visible: root.results.length > 0
+                    text: "Results for “" + root.resultsQuery + "” · " + (root.resultsLanguage === "he" ? "Hebrew" : "English")
+                    textFormat: Text.PlainText
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    font.pixelSize: 20 * root.u; color: "#555555"
+                }
+                ListView {
+                    id: resultList
+                    objectName: "wiki-results"
+                    Layout.fillWidth: true; Layout.fillHeight: true
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
                     model: root.results.slice(root.resultPage * 4, root.resultPage * 4 + 4)
-                    Rectangle {
+                    delegate: Rectangle {
                         required property var modelData
-                        width: parent.width
-                        height: Math.min(174 * root.u, Math.max(125 * root.u, (root.height - (root.keyboardOpen ? 810 : 435) * root.u) / 4))
+                        width: resultList.width
+                        height: 174 * root.u
                         color: "white"
                         RowLayout {
                             anchors.fill: parent; anchors.topMargin: 14 * root.u; anchors.bottomMargin: 14 * root.u; spacing: 18 * root.u
                             ColumnLayout {
                                 Layout.fillWidth: true; spacing: 7 * root.u
                                 Text { text: modelData.title; textFormat: Text.PlainText; font.pixelSize: 29 * root.u; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1 }
-                                Text { text: modelData.description || modelData.excerpt; textFormat: Text.PlainText; font.pixelSize: 22 * root.u; color: "#555555"; wrapMode: Text.Wrap; elide: Text.ElideRight; maximumLineCount: 2; Layout.fillWidth: true }
+                                Text { text: modelData.description || modelData.excerpt || ""; textFormat: Text.PlainText; font.pixelSize: 22 * root.u; color: "#555555"; wrapMode: Text.Wrap; elide: Text.ElideRight; maximumLineCount: 2; Layout.fillWidth: true }
                             }
-                            WikiButton { text: "↓ PDF"; textSize: 26 * root.u; Layout.preferredWidth: 135 * root.u; Layout.preferredHeight: 72 * root.u; enabled: root.ready && !root.busy && root.importerAvailable; onClicked: root.download(modelData) }
+                            WikiButton { objectName: "wiki-download"; text: "↓ PDF"; textSize: 26 * root.u; Layout.preferredWidth: 135 * root.u; Layout.preferredHeight: 72 * root.u; enabled: root.ready && !root.busy && root.importerAvailable; onClicked: root.download(modelData) }
                         }
                         Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: "#dddddd" }
                     }
@@ -213,18 +237,19 @@ Rectangle {
             }
             Text {
                 anchors.centerIn: parent; width: parent.width * 0.85
-                visible: (root.results.length === 0 || root.keyboardOpen) && !root.busy
+                visible: root.results.length === 0 && !root.busy
                 text: "Wikipedia articles, ready to annotate.\n\nSearch above, then download a PDF.\nIt appears in My files, like any other document."
                 font.pixelSize: 28 * root.u; color: "#555555"; lineHeight: 1.3; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap
             }
         }
         RowLayout {
-            visible: root.results.length > 4 && !root.keyboardOpen; Layout.alignment: Qt.AlignHCenter; spacing: 30 * root.u
-            WikiButton { text: "←"; enabled: root.resultPage > 0 && !root.busy; width: 95 * root.u; height: 55 * root.u; onClicked: root.resultPage-- }
+            visible: root.results.length > 4; Layout.alignment: Qt.AlignHCenter; spacing: 30 * root.u
+            WikiButton { text: "←"; enabled: root.resultPage > 0 && !root.busy; width: 95 * root.u; height: 55 * root.u; onClicked: { root.resultPage--; resultList.positionViewAtBeginning() } }
             Text { text: (root.resultPage + 1) + " / " + Math.ceil(root.results.length / 4); font.pixelSize: 23 * root.u }
-            WikiButton { text: "→"; enabled: (root.resultPage + 1) * 4 < root.results.length && !root.busy; width: 95 * root.u; height: 55 * root.u; onClicked: root.resultPage++ }
+            WikiButton { text: "→"; enabled: (root.resultPage + 1) * 4 < root.results.length && !root.busy; width: 95 * root.u; height: 55 * root.u; onClicked: { root.resultPage++; resultList.positionViewAtBeginning() } }
         }
         Keyboard {
+            objectName: "wiki-keyboard"
             visible: root.keyboardOpen; enabled: !root.busy
             Layout.fillWidth: true; unit: root.u; language: root.language
             onKey: value => {

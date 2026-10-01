@@ -5,6 +5,9 @@
 - Search and PDF generation use Wikipedia's public services directly from the
   tablet. No dependency on md-server, API keys, desktop or reMarkable cloud API.
 - Search box, readable results, direct Download action, honest progress/errors.
+- Submit only with Search/Enter. Typing, keyboard visibility and language edits
+  must not hide or clear the last results. Keep results until a successful new
+  search replaces them; failed/cancelled/stale responses leave them intact.
 - English default and Hebrew option; remember language, provide touch keyboard.
 - Import through the editor's existing DocumentImporter. Do not write library
   metadata, modify existing documents, patch firmware, or restart per download.
@@ -16,9 +19,16 @@
 * Next steps
 - DONE: separate app built, HTTP/unit/race/UI tests pass; Linux AppLoad protocol
   socket tests pass on Pro; app-only installation and live search/PDF download pass.
-- PENDING: open Wikipedia from refreshed AppLoad list, verify native importer
-  availability and actual library insertion using one chosen test article.
-- Get physical keyboard/search/open acceptance; independently qualify Move.
+- DONE: user confirmed end-to-end use; device log confirms native import success.
+- DONE: v0.1.1 stable-results keyboard/focus fix and regression tests.
+- DONE: v0.1.1 UI-only update installed on Pro; preserved backend/icon/state
+  hashes, editor PID, zero restarts, drop-ins and read-only root.
+- DONE: Reddit draft and source-install/upgrade instructions prepared.
+- NEXT: obtain physical v0.1.1 keyboard acceptance. Publication and repository
+  visibility changes require a separate decision.
+- Independently qualify Move; do not infer support from desktop layout tests.
 
 * Changed requirements
-- None. User explicitly chose a new repo rather than modifying existing apps.
+- 2026-10-01: the initial UI hid results whenever the keyboard opened. Replaced
+  with persistent results and explicit Search/Enter submission, following the
+  user's report of disappearing results. No live/fuzzy-search behavior required.

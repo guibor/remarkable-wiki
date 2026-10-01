@@ -10,13 +10,20 @@ Google Drive, API key, or desktop companion is involved.
 
 1. Open **AppLoad**. If newly installed, tap its **refresh** icon.
 2. Open **Wikipedia**.
-3. Type a query using the on-screen keyboard, then tap **Search**.
+3. Type a query using the on-screen keyboard, then tap **Search** (or press Enter).
 4. Browse the results with the page arrows and tap **↓ PDF** beside an article.
+   With the keyboard open, you can also swipe within the results to see more.
 5. Wait for **Added to My files**, then close the app and open the PDF there.
 
 The language button switches between English and Hebrew Wikipedia and their
 keyboards. Search language is remembered. The **Keyboard** button lets you
-edit your query after searching. PDFs use Wikipedia's own rendering, including
+edit your query after searching. Results stay visible while you type or toggle
+the keyboard. Search/Enter submits a new query; typing alone does not search.
+The small **Results for…** caption identifies the list you're seeing. A failed
+or cancelled search leaves that list available to download. Switching language
+does not change old results; submit again to search the other Wikipedia.
+
+PDFs use Wikipedia's own rendering, including
 its article attribution and reference sections; this app does not restyle them.
 
 Downloads are bounded to 64 MB and 90 seconds. You can cancel network work.
@@ -29,7 +36,7 @@ download. Successful imports remove only the app's cached source PDF.
 
 | Target | Status |
 | --- | --- |
-| Paper Pro, 3.29.0.148, AppLoad 0.6.0 | App installed; direct search/download tested; physical UI/native import acceptance pending |
+| Paper Pro, 3.29.0.148, AppLoad 0.6.0 | End-to-end use confirmed by the owner; native PDF import confirmed in device log. v0.1.1 keyboard fix covered by UI tests; physical recheck pending |
 | Paper Pro Move | Responsive UI covered by desktop mocks; not installed or device-qualified |
 | Other firmware/devices | Not yet qualified |
 
@@ -50,11 +57,32 @@ App state lives in `~/.local/share/remarkable-wiki/`, separate from the library.
 Keep `state.json` across upgrades: it records language and import outcomes.
 Never blindly clear an `importing` record to retry; inspect My files first.
 
-## Build and test
+## Installation from source
+
+This is a developer-mode app, not an official reMarkable app or a stock-device
+installer. You need SSH access and a separately installed, working
+[XOVI](https://github.com/asivery/xovi) / [AppLoad](https://github.com/asivery/rm-appload)
+setup. This repository does not install or update that foundation. Back up
+your device first, and do not bypass a model/firmware mismatch in the installer.
+
+There is no prebuilt public release yet. The repository is currently private;
+these source-install instructions work for accounts with repository access.
+
+```sh
+git clone git@github.com:guibor/remarkable-wiki.git
+cd remarkable-wiki
+```
 
 Requires Go 1.22+, Qt 6 `rcc`, and `rsvg-convert`. For UI tests also install
 `qmltestrunner`. The provided build defaults to Homebrew's `rcc` path; override
 `RCC` on another build host.
+
+On macOS with Homebrew:
+
+```sh
+brew install go qt librsvg
+export PATH="$(brew --prefix qt)/bin:$PATH"
+```
 
 ```sh
 bash scripts/test.sh
@@ -74,6 +102,33 @@ RM_SSH_KEY=~/.ssh/your_tablet_key bash scripts/install-pro.sh VERIFIED_IP
 The installer requires a trusted SSH host key, pins the Pro model/firmware and
 stock editor hash, verifies the uploaded bundle, and refuses to overwrite an
 existing installation. Read [UPDATE-RECIPE.md](UPDATE-RECIPE.md) for upgrades.
+
+For a **UI-only upgrade** of an existing installation on that same qualified
+Paper Pro, close Wikipedia, run the tests/build above, then:
+
+```sh
+RM_SSH_KEY=~/.ssh/your_tablet_key bash scripts/update-pro-ui.sh VERIFIED_IP
+```
+
+This keeps the installed backend, icon and app history byte-for-byte. It backs
+up the app and state to the tablet and `.cache/receipts/` on your computer,
+verifies both copies, and updates only the UI resource and manifest. Do not use
+this script for a release that changes the backend. Refresh AppLoad, then reopen
+Wikipedia. No editor or tablet restart is needed.
+
+### If something goes wrong
+
+- **No results yet:** typing alone does not search. Tap Search or press Enter.
+- **Need more space:** Hide keys expands the list; results remain available with
+  the keyboard open too.
+- **Network/PDF error:** check Wi-Fi and retry. Wikipedia's PDF service may be
+  unavailable for a particular article; this app has no fallback server.
+- **Import taking too long:** check My files before retrying. A successful
+  download is not proof that import completed.
+- **Installer rejects your device:** stop; the exact firmware/model has not
+  been qualified by that installer. Do not remove the guard to force it.
+
+## Development diagnostics
 
 Network diagnostics, without GUI or library insertion:
 

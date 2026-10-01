@@ -20,7 +20,8 @@
 ## Milestones
 
 - Near term: Paper Pro 3.29.0.148, existing AppLoad 0.6.0, no runtime replacement.
-- Next: physical search/download/open acceptance, independent Move qualification.
+- Accepted: user-confirmed end-to-end search/download/native import on Paper Pro.
+- Next: stable keyboard/results interaction acceptance, independent Move qualification.
 - Later: more Wikipedia languages and optional download history refinement.
 
 ## Open questions
