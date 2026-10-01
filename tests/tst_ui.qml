@@ -141,6 +141,85 @@ TestCase {
         verify(!app.busy); verify(app.folderPickerOpen); compare(app.destination.id, "")
     }
     function test_request_requires_query() { app.ready = true; app.search(); verify(!app.busy) }
+    function test_incremental_debounces_and_keeps_keyboard_and_results() {
+        seedResults()
+        let query = findChild(app, "wiki-query")
+        query.text = "Mo"; wait(250); query.text = "Moon"; wait(300)
+        verify(!app.searching); compare(app.results[0].title, "Earth")
+        tryCompare(app, "searching", true, 800)
+        verify(app.keyboardOpen); verify(!query.readOnly)
+        verify(findChild(app, "wiki-keyboard").enabled)
+        verify(findChild(app, "wiki-download").enabled)
+        let sent = findChild(app, "wiki-endpoint").sent.filter(m => m.action === "search")
+        compare(sent.length, 1); compare(sent[0].query, "Moon")
+        receive({kind: "results", id: app.requestId, pages: [{title: "Moon"}]})
+        compare(app.results[0].title, "Moon"); verify(app.keyboardOpen)
+    }
+    function test_edit_invalidates_inflight_reply_before_next_search() {
+        seedResults(); let query = findChild(app, "wiki-query")
+        query.text = "Moon"; app.search(true); let oldId = app.requestId
+        query.text = "Mars"
+        verify(!app.searching)
+        receive({kind: "results", id: oldId, pages: [{title: "Moon"}]})
+        receive({kind: "error", id: oldId, message: "stale failure"})
+        compare(app.results[0].title, "Earth"); verify(app.status !== "stale failure")
+        tryCompare(app, "searching", true, 800)
+        receive({kind: "results", id: app.requestId, pages: [{title: "Mars"}]})
+        compare(app.resultsQuery, "Mars"); compare(app.results[0].title, "Mars")
+    }
+    function test_download_preempts_live_search_and_pending_timer() {
+        seedResults(); let query = findChild(app, "wiki-query")
+        query.text = "Moon"; app.search(true); let searchId = app.requestId
+        app.download(app.results[0])
+        verify(app.busy); verify(!app.searching); verify(app.controlsLocked)
+        receive({kind: "results", id: searchId, pages: [{title: "Moon"}]})
+        compare(app.results[0].title, "Earth"); compare(app.transferPhase, "preparing")
+        wait(600)
+        let sent = findChild(app, "wiki-endpoint").sent
+        compare(sent[sent.length - 1].action, "download")
+        compare(sent[sent.length - 1].page.key, "Earth")
+    }
+    function test_clear_or_single_character_preserves_results_without_request() {
+        seedResults(); let query = findChild(app, "wiki-query")
+        query.text = "Moon"; app.search(true); let oldId = app.requestId
+        query.text = ""; wait(550)
+        verify(!app.searching); compare(app.results.length, 5)
+        receive({kind: "results", id: oldId, pages: []}); compare(app.results.length, 5)
+        query.text = "M"; wait(550); verify(!app.searching)
+        app.search(); verify(app.searching) // Explicit submission permits one letter.
+    }
+    function test_enter_flushes_debounce_without_duplicate_search() {
+        seedResults(); let query = findChild(app, "wiki-query")
+        query.text = "Moon"; app.search(); wait(600)
+        let sent = findChild(app, "wiki-endpoint").sent.filter(m => m.action === "search")
+        compare(sent.length, 1); verify(!app.keyboardOpen)
+    }
+    function test_language_change_supersedes_search_but_retains_results_language() {
+        seedResults(); let query = findChild(app, "wiki-query")
+        query.text = "Moon"; app.search(true); let oldId = app.requestId
+        app.language = "he"
+        receive({kind: "results", id: oldId, pages: []})
+        compare(app.resultsLanguage, "en"); compare(app.results.length, 5)
+        tryCompare(app, "searching", true, 800)
+        let sent = findChild(app, "wiki-endpoint").sent
+        compare(sent[sent.length - 1].language, "he")
+        receive({kind: "error", id: app.requestId, message: "Offline"})
+        compare(app.results.length, 5); verify(app.keyboardOpen); verify(!app.searching)
+    }
+    function test_folder_picker_stops_pending_live_search() {
+        seedResults(); findChild(app, "wiki-query").text = "Moon"
+        app.openFolders(); wait(600)
+        let sent = findChild(app, "wiki-endpoint").sent
+        compare(sent.filter(m => m.action === "search").length, 0)
+        compare(sent[sent.length - 1].action, "folders")
+    }
+    function test_refresh_is_quiet_and_open_is_primary() {
+        let refresh = findChild(app, "wiki-refresh-pdf")
+        compare(refresh.text, "Refresh article"); verify(refresh.quiet)
+        compare(refresh.border.width, 0)
+        let open = findChild(app, "wiki-open-pdf")
+        verify(open.primary); verify(open.textSize > refresh.textSize)
+    }
     function test_search_and_cancel_ready() {
         app.ready = true
         let query = findChild(app, "wiki-query"); verify(query)

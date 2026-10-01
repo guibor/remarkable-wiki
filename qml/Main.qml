@@ -13,6 +13,8 @@ Rectangle {
     property string language: "en"
     property bool ready: false
     property bool busy: false
+    property bool searching: false
+    readonly property bool controlsLocked: (busy && !searching) || importing || historyPending
     property bool keyboardOpen: true
     property bool importing: false
     property string status: "Connecting…"
@@ -51,16 +53,35 @@ Rectangle {
         if (!payload.language) payload.language = language
         endpoint.sendMessage(1, JSON.stringify(payload))
     }
-    function search() {
-        if (!ready || busy || historyPending || query.text.trim().length === 0) return
+    function stopSearch() {
+        liveSearch.stop()
+        if (!searching) return
+        request("cancel"); requestId++
+        searching = false; busy = false
+    }
+    function scheduleSearch() {
+        if (!ready || controlsLocked || folderPickerOpen || disposed) return
+        stopSearch() // Invalidate immediately, including during the debounce gap.
+        if (query.text.trim().length >= 2 && !query.inputMethodComposing) liveSearch.restart()
+        status = results.length ? "Choose a PDF, or keep typing to refine results." : "Type to search Wikipedia."
+    }
+    onLanguageChanged: if (ready) scheduleSearch()
+    function search(automatic) {
+        if (!ready || controlsLocked || folderPickerOpen || query.text.trim().length === 0) return
+        liveSearch.stop()
+        if (automatic !== true) {
+            query.focus = false; root.forceActiveFocus(); keyboardOpen = false
+        }
+        if (searching && submittedQuery === query.text.trim() && submittedLanguage === language) return
+        stopSearch()
         submittedQuery = query.text.trim(); submittedLanguage = language
         transferPhase = ""
-        query.focus = false; root.forceActiveFocus()
-        requestId++; busy = true; keyboardOpen = false
-        status = "Searching Wikipedia…"; request("search", {query: query.text})
+        requestId++; busy = true; searching = true
+        status = "Searching Wikipedia…"; request("search", {query: submittedQuery})
     }
     function download(page, refresh, articleLanguage) {
-        if (!ready || busy || historyPending || !importerAvailable) return
+        if (!ready || controlsLocked || !importerAvailable) return
+        stopSearch()
         selectedPage = page; selectedLanguage = articleLanguage || resultsLanguage
         canRefresh = false; savedToken = ""
         resolveTimer.stop(); historyTimeout.stop()
@@ -75,7 +96,8 @@ Rectangle {
         download(selectedPage, true, selectedLanguage)
     }
     function openFolders() {
-        if (!ready || busy || historyPending) return
+        if (!ready || controlsLocked) return
+        stopSearch()
         query.focus = false; root.forceActiveFocus(); keyboardOpen = false
         folderPickerOpen = true; busy = true; requestId++
         status = "Loading folders…"; request("folders")
@@ -108,7 +130,8 @@ Rectangle {
         return {host: host, launcher: launcher}
     }
     function openSaved() {
-        if (busy || historyPending) return
+        if (controlsLocked) return
+        stopSearch()
         if (!savedDocumentId) {
             resolveAttempts = 0; historyPending = true
             status = "Finding the saved PDF…"; resolveTimer.restart()
@@ -159,6 +182,7 @@ Rectangle {
     function unloading() {
         if (disposed) return
         disposed = true
+        liveSearch.stop()
         if (importerAvailable) {
             DocumentImporter.imported.disconnect(root.imported)
             DocumentImporter.failed.disconnect(root.failed)
@@ -206,7 +230,7 @@ Rectangle {
                 if (root.ready) return
                 root.ready = true; root.language = m.language || "en"; handshake.stop()
                 root.destination = m.destination || {id: "", name: "My files"}
-                root.status = root.importerAvailable ? "Search Wikipedia. Download an article to My files." : "This firmware's native PDF importer is unavailable."
+                root.status = root.importerAvailable ? "Type to search Wikipedia. Download an article as a PDF." : "This firmware's native PDF importer is unavailable."
                 return
             }
             if (m.id !== root.requestId) return
@@ -217,7 +241,7 @@ Rectangle {
                 root.destination = m.destination; root.busy = false; root.folderPickerOpen = false
                 root.status = "New PDFs will be saved to " + root.destination.name + "."
             } else if (m.kind === "results") {
-                root.results = m.pages || []; root.busy = false
+                root.results = m.pages || []; root.busy = false; root.searching = false
                 root.resultsQuery = root.submittedQuery; root.resultsLanguage = root.submittedLanguage
                 root.resultPage = 0; resultList.positionViewAtBeginning()
                 root.status = root.results.length ? "Choose an article to download as PDF." : "No articles found. Try a different search."
@@ -240,7 +264,7 @@ Rectangle {
                 try { DocumentImporter.importFromUrls([m.url], root.importDestination.id) }
                 catch (e) { root.failed(m.url); console.log("Wiki: import invocation failed: " + e) }
             } else if (m.kind === "error" || m.kind === "existing") {
-                root.busy = false; root.importing = false; root.status = m.message
+                root.busy = false; root.searching = false; root.importing = false; root.status = m.message
                 if (m.kind === "existing") root.canRefresh = m.canRefresh === true
                 if (root.transferPhase === "complete") {
                     root.historyPending = false; resolveTimer.stop(); historyTimeout.stop()
@@ -250,10 +274,14 @@ Rectangle {
                     root.transferPhase = "complete"; root.historyPending = false
                 } else if (root.transferPhase !== "") root.transferPhase = m.kind === "existing" ? "existing" : "error"
             } else if (m.kind === "cancelled") {
-                root.busy = false; root.status = "Cancelled."
+                root.busy = false; root.searching = false; root.status = "Cancelled."
                 root.transferPhase = ""
             }
         }
+    }
+    Timer {
+        id: liveSearch; interval: 500
+        onTriggered: root.search(true)
     }
     Timer {
         id: resolveTimer; interval: 400; repeat: true
@@ -304,7 +332,7 @@ Rectangle {
             WikiButton {
                 text: root.language === "en" ? "EN → עברית" : "עברית → EN"
                 Layout.preferredWidth: 175 * root.u; Layout.preferredHeight: 62 * root.u; textSize: 22 * root.u
-                enabled: root.ready && !root.busy
+                enabled: root.ready && !root.controlsLocked
                 onClicked: { root.language = root.language === "en" ? "he" : "en"; root.keyboardOpen = true }
             }
             WikiButton {
@@ -323,8 +351,10 @@ Rectangle {
                     anchors.fill: parent; anchors.margins: 18 * root.u
                     verticalAlignment: TextInput.AlignVCenter
                     font.pixelSize: 30 * root.u; color: "#171717"; clip: true
-                    maximumLength: 200; selectByMouse: true; readOnly: root.busy
-                    TapHandler { onTapped: if (!root.busy) root.keyboardOpen = true }
+                    maximumLength: 200; selectByMouse: true; readOnly: root.controlsLocked
+                    TapHandler { onTapped: if (!root.controlsLocked) root.keyboardOpen = true }
+                    onTextChanged: root.scheduleSearch()
+                    onInputMethodComposingChanged: root.scheduleSearch()
                     onAccepted: root.search()
                     Text { anchors.verticalCenter: parent.verticalCenter; visible: !query.text; text: root.language === "he" ? "חיפוש בוויקיפדיה" : "Search for an article"; font: query.font; color: "#777777" }
                 }
@@ -332,13 +362,13 @@ Rectangle {
             WikiButton {
                 objectName: "wiki-search"
                 text: "Search"; primary: true; Layout.preferredWidth: 145 * root.u; Layout.preferredHeight: 80 * root.u; textSize: 27 * root.u
-                enabled: root.ready && !root.busy && query.text.trim().length > 0
+                enabled: root.ready && !root.controlsLocked && query.text.trim().length > 0
                 onClicked: root.search()
             }
             WikiButton {
                 objectName: "wiki-keyboard-toggle"
                 text: root.keyboardOpen ? "Hide keys" : "Keyboard"; Layout.preferredWidth: 150 * root.u; Layout.preferredHeight: 80 * root.u; textSize: 23 * root.u
-                enabled: !root.busy; onClicked: root.keyboardOpen = !root.keyboardOpen
+                enabled: !root.controlsLocked; onClicked: root.keyboardOpen = !root.keyboardOpen
             }
         }
         RowLayout {
@@ -352,7 +382,7 @@ Rectangle {
                 objectName: "wiki-change-folder"
                 text: "Change"; textSize: 22 * root.u
                 Layout.preferredWidth: 130 * root.u; Layout.preferredHeight: 55 * root.u
-                enabled: root.ready && !root.busy
+                enabled: root.ready && !root.controlsLocked
                 onClicked: root.openFolders()
             }
         }
@@ -363,7 +393,7 @@ Rectangle {
             WikiButton {
                 objectName: "wiki-cancel"
                 visible: root.busy && !root.importing; text: "Cancel"; Layout.preferredWidth: 130 * root.u; Layout.preferredHeight: 60 * root.u; textSize: 23 * root.u
-                onClicked: { root.request("cancel"); root.requestId++; root.busy = false; root.status = "Cancelled." }
+                onClicked: { root.request("cancel"); root.requestId++; liveSearch.stop(); root.searching = false; root.busy = false; root.status = "Cancelled." }
             }
         }
         Rectangle {
@@ -414,14 +444,14 @@ Rectangle {
                     Layout.fillWidth: true; spacing: 18 * root.u
                     WikiButton {
                         objectName: "wiki-refresh-pdf"
-                        text: "Download again"; textSize: 23 * root.u
-                        Layout.preferredWidth: 240 * root.u; Layout.preferredHeight: 66 * root.u
+                        text: "Refresh article"; textSize: 20 * root.u; quiet: true
+                        Layout.preferredWidth: 175 * root.u; Layout.preferredHeight: 58 * root.u
                         enabled: root.ready && !root.busy && !root.historyPending
                         onClicked: root.refreshSelected()
                     }
                     Text {
-                        text: "Fetch a fresh PDF. Keeps the old copy and your annotations."
-                        textFormat: Text.PlainText; font.pixelSize: 20 * root.u
+                        text: "Saves a new copy; keeps your annotations."
+                        textFormat: Text.PlainText; font.pixelSize: 18 * root.u
                         Layout.fillWidth: true; wrapMode: Text.Wrap; color: "#555555"
                     }
                 }
@@ -459,7 +489,7 @@ Rectangle {
                                 Text { text: modelData.title; textFormat: Text.PlainText; font.pixelSize: 29 * root.u; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 1 }
                                 Text { text: modelData.description || modelData.excerpt || ""; textFormat: Text.PlainText; font.pixelSize: 22 * root.u; color: "#555555"; wrapMode: Text.Wrap; elide: Text.ElideRight; maximumLineCount: 2; Layout.fillWidth: true }
                             }
-                            WikiButton { objectName: "wiki-download"; text: "↓ PDF"; textSize: 26 * root.u; Layout.preferredWidth: 135 * root.u; Layout.preferredHeight: 72 * root.u; enabled: root.ready && !root.busy && root.importerAvailable; onClicked: root.download(modelData) }
+                            WikiButton { objectName: "wiki-download"; text: "↓ PDF"; textSize: 26 * root.u; Layout.preferredWidth: 135 * root.u; Layout.preferredHeight: 72 * root.u; enabled: root.ready && !root.controlsLocked && root.importerAvailable; onClicked: root.download(modelData) }
                         }
                         Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: "#dddddd" }
                     }
@@ -468,19 +498,19 @@ Rectangle {
             Text {
                 anchors.centerIn: parent; width: parent.width * 0.85
                 visible: root.results.length === 0 && !root.busy
-                text: "Wikipedia articles, ready to annotate.\n\nSearch above, then download a PDF.\nIt appears in My files, like any other document."
+                text: "Wikipedia articles, ready to annotate.\n\nType at least two characters to search,\nthen download a PDF to your chosen folder."
                 font.pixelSize: 28 * root.u; color: "#555555"; lineHeight: 1.3; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap
             }
         }
         RowLayout {
             visible: root.results.length > 4; Layout.alignment: Qt.AlignHCenter; spacing: 30 * root.u
-            WikiButton { text: "←"; enabled: root.resultPage > 0 && !root.busy; width: 95 * root.u; height: 55 * root.u; onClicked: { root.resultPage--; resultList.positionViewAtBeginning() } }
+            WikiButton { text: "←"; enabled: root.resultPage > 0 && !root.controlsLocked; width: 95 * root.u; height: 55 * root.u; onClicked: { root.resultPage--; resultList.positionViewAtBeginning() } }
             Text { text: (root.resultPage + 1) + " / " + Math.ceil(root.results.length / 4); font.pixelSize: 23 * root.u }
-            WikiButton { text: "→"; enabled: (root.resultPage + 1) * 4 < root.results.length && !root.busy; width: 95 * root.u; height: 55 * root.u; onClicked: { root.resultPage++; resultList.positionViewAtBeginning() } }
+            WikiButton { text: "→"; enabled: (root.resultPage + 1) * 4 < root.results.length && !root.controlsLocked; width: 95 * root.u; height: 55 * root.u; onClicked: { root.resultPage++; resultList.positionViewAtBeginning() } }
         }
         Keyboard {
             objectName: "wiki-keyboard"
-            visible: root.keyboardOpen; enabled: !root.busy
+            visible: root.keyboardOpen; enabled: !root.controlsLocked
             Layout.fillWidth: true; unit: root.u; language: root.language
             onKey: value => {
                 if (value === "SEARCH") { root.search(); return }

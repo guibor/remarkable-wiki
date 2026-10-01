@@ -11,7 +11,8 @@ Google Drive, API key, or desktop companion is involved.
 
 1. Open **AppLoad**. If newly installed, tap its **refresh** icon.
 2. Open **Wikipedia**.
-3. Type a query using the on-screen keyboard, then tap **Search** (or press Enter).
+3. Type a query. Results update after a half-second pause (two characters or
+   more), without hiding the keyboard. **Search** or Enter searches immediately.
 4. Browse the results with the page arrows and tap **↓ PDF** beside an article.
    With the keyboard open, you can also swipe within the results to see more.
 5. The status panel shows the article, download progress (when Wikipedia
@@ -30,7 +31,7 @@ remain available in the normal library; the app will not guess by title.
 
 ### Refresh an article you've already downloaded
 
-Select it again with **↓ PDF**, then tap **Download again** in its status card.
+Select it again with **↓ PDF**, then tap the small **Refresh article** link in its status card.
 That action also appears after a new import finishes. It makes a fresh request
 to Wikipedia, bypassing the app's downloaded-PDF cache, and imports a **new copy**
 into the current **Save to** folder. Tap **Open PDF** when the new copy is ready.
@@ -56,7 +57,9 @@ an error asking you to choose again, rather than silently saving elsewhere.
 The language button switches between English and Hebrew Wikipedia and their
 keyboards. Search language is remembered. The **Keyboard** button lets you
 edit your query after searching. Results stay visible while you type or toggle
-the keyboard. Search/Enter submits a new query; typing alone does not search.
+the keyboard. New searches run after a brief pause; Search/Enter skips the wait.
+The keyboard stays usable while searching, and old results remain available
+until the current query succeeds. Selecting a PDF cancels the background search.
 The small **Results for…** caption identifies the list you're seeing. A failed
 or cancelled search leaves that list available to download. Switching language
 does not change old results; submit again to search the other Wikipedia.
@@ -75,7 +78,7 @@ only its cached source PDF. An unresolved ID retains that cache for verification
 
 | Target | Status |
 | --- | --- |
-| Paper Pro, 3.29.0.148, AppLoad 0.6.0 | Base search/import flow confirmed by the owner. v0.2.2 installed with the Open PDF fix and explicit refresh; 23 UI checks and Go/race/vet pass. Physical quick-open/refresh recheck pending |
+| Paper Pro, 3.29.0.148, AppLoad 0.6.0 | Owner's recording confirms refresh/import/Open on v0.2.2. v0.3.0 incremental search and quiet refresh installed; 31 UI checks and Go/race/vet pass. Physical live-search QA pending |
 | Paper Pro Move | Responsive UI covered by desktop mocks; not installed or device-qualified |
 | Other firmware/devices | Not yet qualified |
 
@@ -162,7 +165,8 @@ the folder picker needs the new backend too.
 
 ### If something goes wrong
 
-- **No results yet:** typing alone does not search. Tap Search or press Enter.
+- **No results yet:** type at least two characters and pause briefly, or tap
+  Search/Enter. A one-character search requires explicit submission.
 - **Need more space:** Hide keys expands the list; results remain available with
   the keyboard open too.
 - **Network/PDF error:** check Wi-Fi and retry. Wikipedia's PDF service may be

@@ -31,13 +31,22 @@ replacing new state. Only one operation runs at a time; cancellation interrupts
 HTTP. Backend never imports or writes library files itself.
 
 `qml/Main.qml` hosts the search/results, touch keyboard, English/Hebrew selector
-and download states. `search()` snapshots the submitted query/language and
-clears input focus before starting work. Draft query/language and committed
+and download states. `scheduleSearch()` debounces edits/language changes by
+500 ms, requires two characters, and cancels and invalidates older searches
+immediately, before the next request. IME composition waits until committed.
+`search(automatic)` snapshots the submitted query/language. Automatic calls
+keep keyboard/focus; explicit Search/Enter closes the keyboard and flushes the
+timer. A matching in-flight query is not duplicated. `stopSearch()` sends cancel
+before advancing the request ID, so late results/errors cannot repaint the UI.
+`searching` distinguishes background search from `controlsLocked` transfer/
+import/history work. Input, keyboard, paging and existing download buttons stay
+usable during search; selecting a result or folder stops the search/timer first.
+There is one protocol operation at a time. Draft query/language and committed
 results are separate: editing never clears the results. Only a matching
 successful response replaces the list and resets pagination; errors,
 cancellation and stale responses preserve it. The clipped `ListView` remains
 visible and scrollable with the keyboard open. Input uses `readOnly` during
-work rather than disabled/re-enabled focus transitions. Keyboard opening is an
+non-search work rather than disabled/re-enabled focus transitions. Keyboard opening is an
 explicit input tap/button action, never a side effect of focus restoration.
 `download()` sends the result set's original language, even if the user has
 since changed the language selector. Once a PDF is complete, it calls the stock
@@ -66,7 +75,7 @@ and AppLoad launcher. Opening hides the launcher and closes only this app; it
 does not patch navigation or restart anything. A missing route leaves the PDF
 saved and tells the user its location rather than guessing by title.
 
-`refreshSelected()` adds an explicit Download again action to completed or
+`refreshSelected()` adds an explicit Refresh article action to completed or
 already-imported article cards, including legacy records without native IDs.
 It snapshots the original article key/language, independently of search-box
 edits, and uses the currently selected save destination. `Record.BlocksDownload`
@@ -80,6 +89,15 @@ latest per-article record. It is imported through the normal native pipeline as
 a new document: no existing PDF, annotation or library metadata is overwritten.
 The latest successful import becomes the Open PDF target. v0.2.2 requires
 backend protocol 4 so UI-only installation cannot silently ignore refresh.
+v0.3.0 uses a quiet `WikiButton` variant: no border/background, underlined smaller
+text and a generous touch target. Open PDF remains the large filled primary
+action. The backend protocol stays at 4; this release is UI-only over v0.2.2.
+
+`scripts/make-reddit-demo.sh` trims the owner's supplied recording into
+`docs/media/wikipedia-reddit-demo.mp4` for the unsent Reddit draft. Original
+speed is retained, dead time/false start is cut, and the screen-sharing footer
+is cropped. The clip demonstrates v0.2.2 refresh/import/Open, not incremental
+search or the new button styling; publication notes make that distinction.
 
 `scripts/build.sh` produces a static arm64 backend and a binary Qt resource.
 The AppLoad manifest loads those without any new shared library or QMD patch.
@@ -142,3 +160,11 @@ the same editor PID/restarts/drop-ins/root mode and unchanged app state/icon.
 Twenty-three Qt checks and Go/race/vet pass; the desktop ready-card render shows
 Open PDF as the primary action and Download again as a separate secondary row.
 No refresh/import was triggered by deployment; physical acceptance is pending.
+
+The owner's October 1 recording subsequently confirms v0.2.2 refresh/import/Open
+into Machine learning; the device log confirms native ID verification at
+17:57:55.564 (device log time). Old annotations/chosen folders were not inspected.
+v0.3.0 UI-only transaction `wiki-ui-20261001T180343Z` preserves the same backend,
+state/icon, PID 861536, zero restarts, drop-ins and read-only root. All 31 Qt
+checks and Go/race/vet pass. Live-search physical QA is next, independent of the
+older demo's confirmed Open flow. No Move deployment or public posting.

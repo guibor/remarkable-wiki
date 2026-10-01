@@ -6,7 +6,24 @@ Before publishing: the repository is currently private and has no public
 release. Decide whether to make it public, select a license, review the source
 for publication, replace the link placeholder below, and check the community's
 current rules/flair. Do not announce public availability until those steps are
-actually complete. Also finish the on-device v0.2.0 folder/Open PDF recheck.
+actually complete. The owner's October 1 recording confirms refresh/import/Open;
+chosen-folder and v0.3.0 live-search physical checks remain separate.
+
+## Video attachment
+
+Attach [wikipedia-reddit-demo.mp4](media/wikipedia-reddit-demo.mp4) to the post
+(19.8 seconds, portrait H.264 MP4, no audio). This is an edited extract of the
+owner's real device recording: results → refresh existing article → PDF ready
+→ Open PDF → native reader. Initial false start and some waiting removed;
+screen-sharing footer cropped, original playback speed retained. No synthetic UI.
+
+Suggested caption: “From a Wikipedia result to a PDF in the normal reMarkable
+reader. Here I'm refreshing an article I'd already downloaded. Waiting trimmed.”
+
+The clip is v0.2.2 footage: it shows the older Download again button, not the
+new Refresh article text link or search-as-you-type. Do not present it as a
+demo of incremental search. Reproduce the cut with
+`bash scripts/make-reddit-demo.sh /path/to/the-original-recording.mov`.
 
 ## Title
 
@@ -30,12 +47,18 @@ the article to My files, or a folder you choose. Once it's saved, tap Open PDF
 and you're back in the normal reader, reading and annotating it like any other
 document. That's basically it.
 
+Results now update as you type, without the keyboard disappearing. Open PDF is
+the main action once the download is ready. There's also a small Refresh article
+link if you want to fetch another copy later; it leaves the old PDF and its
+annotations alone. The clip was recorded just before those UI refinements, so
+you'll see the older refresh button there.
+
 It talks directly to Wikipedia. No account, API key or server of mine in the
 middle. You do need Wi-Fi to search and download; once the PDF is there, you
 can read it offline. English and Hebrew are supported for now.
 
 I've been using it on my Paper Pro on 3.29.0.148 with AppLoad 0.6.0, and the
-search → PDF → My files flow works. I haven't qualified it on the Move yet,
+search → PDF → native reader flow works. I haven't qualified it on the Move yet,
 so I'm not claiming support there just because the layout fits.
 
 Installation instructions and source: **[public repository / installation link]**

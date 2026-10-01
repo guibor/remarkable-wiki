@@ -21,6 +21,13 @@ User refreshes AppLoad's list and opens Wikipedia.
 
 ## Existing app / later OS
 
+v0.3.0 adds incremental search and a quiet Refresh article link. Backend protocol
+remains 4, so on an installed v0.2.2 use `scripts/update-pro-ui.sh VERIFIED_IP`
+with Wikipedia closed. Test typing, new edits during in-flight searches, selecting
+a retained result, Enter, language changes and refresh/Open. Keyboard must remain
+usable and stale replies must not replace results. The owner's v0.2.2 recording
+confirms refresh/Open but does not qualify this new live-search behavior.
+
 v0.2.2 adds explicit Download again with **backendProtocol 4**. Use the same full
 app update while Wikipedia is closed. Preserve state and cache. Check that an
 already-imported article offers refresh, an uncertain import does not, and a

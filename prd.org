@@ -8,9 +8,11 @@
 - Search and PDF generation use Wikipedia's public services directly from the
   tablet. No dependency on md-server, API keys, desktop or reMarkable cloud API.
 - Search box, readable results, direct Download action, honest progress/errors.
-- Submit only with Search/Enter. Typing, keyboard visibility and language edits
-  must not hide or clear the last results. Keep results until a successful new
-  search replaces them; failed/cancelled/stale responses leave them intact.
+- Incremental search after 500 ms of paused typing (two characters minimum).
+  Search/Enter submits immediately, including a one-character query. Automatic
+  searching must not hide/disable the keyboard or clear existing results.
+  Immediately invalidate older requests when query/language changes; retain
+  results on failures/cancellation. Downloading a visible result cancels search.
 - English default and Hebrew option; remember language, provide touch keyboard.
 - Import through the editor's existing DocumentImporter. Do not write library
   metadata, modify existing documents, patch firmware, or restart per download.
@@ -22,11 +24,15 @@
 - Open PDF must remain visible after native import even when the callback's
   document object is opaque. Resolve the real native ID, verify the exact PDF,
   and persist it for subsequent opens; do not infer IDs from titles.
-- Offer an explicit Download again action for an already imported article,
+- Offer a quiet, underlined Refresh article action for an already imported article,
   including legacy history with no recorded native ID. Fetch from Wikipedia
   again rather than reusing the app cache; import a new copy into the current
   destination. Preserve the old document and annotations. Never refresh an
   unresolved in-progress import or automatically duplicate a saved article.
+- Open PDF is the dominant completed-card action; refresh has no button border,
+  smaller text, and a short explanation of new-copy/annotation preservation.
+- Prepare a trimmed demo from the user's supplied recording for the Reddit
+  draft; do not post it or change repository visibility without authorization.
 - New PDFs follow normal device sync policy; this is not a
   cloud-exclusion feature. No claims of offline search or local PDF rendering.
 - AppLoad entry, self-contained app payload, preserve all other installed apps.
@@ -44,19 +50,28 @@
   and exact-document Open PDF action; 19 UI checks and Go/race/vet pass.
 - DONE: v0.2.0 installed on Pro with history/icon/runtime unchanged; staged
   backend enumerated 35 available folders read-only.
-- NEXT: physical chosen-folder import and Open PDF acceptance. Publication and repository
+- NEXT: physical chosen-folder import acceptance. Publication and repository
   visibility changes require a separate decision.
 - v0.2.0 physical Open check FAILED: button hidden by opaque native callback.
   v0.2.1 fix installed via wiki-ui-20261001T154340Z after the user closed the
-  app. State/icon/editor runtime unchanged. Real ID-verification log and
-  physical Open acceptance remain pending.
+  app. State/icon/editor runtime unchanged. October 1 recording now confirms
+  ready card to correct native PDF; live log confirms verified identity.
 - DONE: v0.2.2 explicit refresh installed on Pro via wiki-ui-20261001T154740Z;
   23 Qt checks and Go/race/vet pass, state/icon/editor runtime unchanged.
-- NEXT: physical fresh download/native import/Open while the older PDF stays
-  intact; no actual refresh/import was triggered by the installer.
+- DONE: user's October 1 recording shows existing article, explicit refresh,
+  native completion and Open into Machine learning. Old-copy/annotation
+  preservation and chosen-folder flow were not inspected in that recording.
+- DONE: v0.3.0 incremental search and quieter refresh installed UI-only on Pro
+  via wiki-ui-20261001T180343Z. 31 Qt checks and Go/race/vet pass. Backend,
+  history/icon/editor runtime preserved. Edited demo linked in unsent Reddit draft.
+- NEXT: physical live-search QA (keyboard stays usable, no disappearing results,
+  selection during search) and quiet-link appearance. Publication remains gated.
 - Independently qualify Move; do not infer support from desktop layout tests.
 
 * Changed requirements
+- 2026-10-01: supersedes explicit-only search: user now requests incremental
+  search while retaining stable results/keyboard. Download again's large button
+  becomes a secondary Refresh article text link to prioritize Open PDF.
 - 2026-10-01: previously imported articles were always blocked from downloading
   again. Retain this default guard but add a user-triggered refresh/new-copy
   action; an uncertain import still cannot be bypassed.

@@ -12,8 +12,9 @@
 ## Scope
 
 - In scope: direct Wikipedia search/PDF requests, English/Hebrew selection,
-  responsive e-ink UI, native document import with remembered destination,
-  prominent progress/errors and a quick-open action after native success.
+  stable incremental search, responsive e-ink UI, native document import with
+  remembered destination, prominent progress/errors and a dominant quick-open
+  action after native success; quiet explicit refresh preserves older copies.
 - Out of scope: md-server, API keys, notebook-file rewriting, cloud API clients,
   firmware patches, bundled browser/PDF renderer, unattended batch scraping.
 - Success: Wikipedia PDF downloaded on device and accepted by the native library;
@@ -23,7 +24,10 @@
 
 - Near term: Paper Pro 3.29.0.148, existing AppLoad 0.6.0, no runtime replacement.
 - Accepted: user-confirmed end-to-end search/download/native import on Paper Pro.
-- Next: stable keyboard/results interaction acceptance, independent Move qualification.
+- Accepted: owner's October 1 recording shows explicit refresh and Open PDF
+  into the correct native document; native-ID verification confirmed in log.
+- Next: incremental keyboard/results interaction acceptance, chosen-folder flow,
+  independent Move qualification.
 - Later: more Wikipedia languages and optional download history refinement.
 
 ## Open questions
