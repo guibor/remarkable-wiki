@@ -66,6 +66,16 @@ is labelled Wiki: EN / Wiki: עברית and only selects the Wikipedia site. Nat
 layouts follow the tablet's existing settings. Hebrew string handling is tested;
 availability of a Hebrew system layout is not claimed from a desktop mock.
 
+v0.3.2 fixes a synchronous binding transition missed by the initial native mock.
+`controlsLocked = (busy && !searching) || importing || historyPending` feeds
+TextInput.readOnly. QML reevaluates it between JavaScript assignments: setting
+busy before searching briefly disabled editing and could dismiss the native
+IME. Search now sets searching first, then busy; stopSearch and user cancellation
+clear busy first, then searching. Results/errors already used the safe order.
+Tests observe every readOnlyChanged signal, not just the final flag, and emulate
+native dismissal on read-only. No keyboard reopen timer or focus-forcing retry:
+intentional native keyboard closure remains respected.
+
 `download()` sends the result set's original language, even if the user has
 since changed the language selector. Once a PDF is complete, it calls the stock
 `DocumentImporter.importFromUrls([fileUrl], destinationId)` (empty ID means
@@ -193,3 +203,8 @@ integration. Backend/state/icon hashes and editor runtime match their preimages
 and Go/race/vet pass. Desktop layout with a simulated keyboard rectangle was
 inspected; the blank reserved area is not a rendering of the actual keyboard.
 Physical native keyboard/language/Enter/backspace acceptance remains next.
+
+v0.3.2 `wiki-ui-20261001T204553Z` installs the transient-readOnly correction.
+All 38 Qt checks and Go/race/vet pass; the new regression failed before the fix.
+Backend/state/icon and runtime preimages match (PID861536, restarts0, same
+drop-ins/read-only root). Physical keyboard persistence still needs recheck.

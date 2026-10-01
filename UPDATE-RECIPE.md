@@ -21,6 +21,13 @@ User refreshes AppLoad's list and opens Wikipedia.
 
 ## Existing app / later OS
 
+v0.3.2 is a UI-only correction for v0.3.1's disappearing native keyboard.
+Same backend protocol 4 and closed-app updater. Regression must observe zero
+readOnly transitions during automatic start, stale-request cancellation,
+success, failure and user cancellation. Physically type a few characters,
+pause for results, then continue several times without reopening the keyboard.
+Native Close/Hide keys must still work; do not mask regressions by auto-reopening.
+
 v0.3.1 replaces the custom keyboard with Qt.inputMethod show/hide/geometry.
 Backend remains protocol 4: use the UI-only updater on installed v0.2.2+ while
 Wikipedia is closed. The custom Keyboard.qml is removed from resources. No

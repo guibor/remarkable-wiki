@@ -78,7 +78,8 @@ Rectangle {
         liveSearch.stop()
         if (!searching) return
         request("cancel"); requestId++
-        searching = false; busy = false
+        // Bindings run between assignments: clear busy before search exemption.
+        busy = false; searching = false
     }
     function scheduleSearch() {
         if (!ready || controlsLocked || folderPickerOpen || disposed) return
@@ -97,7 +98,8 @@ Rectangle {
         stopSearch()
         submittedQuery = query.text.trim(); submittedLanguage = language
         transferPhase = ""
-        requestId++; busy = true; searching = true
+        // Never pulse controlsLocked/readOnly: the native IME hides immediately.
+        requestId++; searching = true; busy = true
         status = "Searching Wikipedia…"; request("search", {query: submittedQuery})
     }
     function download(page, refresh, articleLanguage) {
@@ -422,7 +424,7 @@ Rectangle {
             WikiButton {
                 objectName: "wiki-cancel"
                 visible: root.busy && !root.importing; text: "Cancel"; Layout.preferredWidth: 130 * root.u; Layout.preferredHeight: 60 * root.u; textSize: 23 * root.u
-                onClicked: { root.request("cancel"); root.requestId++; liveSearch.stop(); root.searching = false; root.busy = false; root.status = "Cancelled." }
+                onClicked: { root.request("cancel"); root.requestId++; liveSearch.stop(); root.busy = false; root.searching = false; root.status = "Cancelled." }
             }
         }
         Rectangle {

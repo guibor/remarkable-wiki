@@ -40,6 +40,41 @@ TestCase {
         app = createTemporaryObject(factory, this, {width: 1000, height: 1350, inputMethod: keyboardMock}); verify(app)
     }
     function test_import_available() { verify(app.importerAvailable) }
+    function test_live_search_never_pulses_readonly_or_dismisses_native_keyboard() {
+        seedResults()
+        let query = findChild(app, "wiki-query")
+        let transitions = []
+        query.readOnlyChanged.connect(function() {
+            transitions.push(query.readOnly)
+            // Native input methods may dismiss immediately when editing is disabled.
+            if (query.readOnly) keyboardMock.hide()
+        })
+        query.text = "Had"; app.search(true)
+        compare(transitions.length, 0, "Starting live search must not even briefly lock input")
+        verify(keyboardMock.visible)
+        let oldId = app.requestId
+        query.text = "Hada" // cancels the first request before the next debounce
+        compare(transitions.length, 0, "Cancelling stale search must not lock input")
+        app.search(true)
+        receive({kind: "results", id: oldId, pages: []})
+        receive({kind: "results", id: app.requestId, pages: [{title: "Hada"}]})
+        verify(keyboardMock.visible); compare(transitions.length, 0)
+        query.text = "Hadam"; app.search(true)
+        receive({kind: "error", id: app.requestId, message: "Offline"})
+        verify(keyboardMock.visible); compare(transitions.length, 0)
+        app.search(true)
+        findChild(app, "wiki-cancel").clicked()
+        compare(transitions.length, 0, "User search cancellation must not lock input")
+        verify(keyboardMock.visible)
+    }
+    function test_live_search_respects_native_keyboard_dismissal() {
+        seedResults(); let query = findChild(app, "wiki-query")
+        query.text = "Had"; app.search(true)
+        keyboardMock.hide(); let showCount = keyboardMock.shows
+        receive({kind: "results", id: app.requestId, pages: [{title: "Had"}]})
+        query.text = "Hada"; app.search(true)
+        verify(!keyboardMock.visible); compare(keyboardMock.shows, showCount)
+    }
     function test_native_keyboard_tap_toggle_and_geometry() {
         seedResults()
         verify(keyboardMock.shows > 0); verify(app.keyboardOpen)

@@ -13,6 +13,8 @@
   searching must not hide/disable the keyboard or clear existing results.
   Immediately invalidate older requests when query/language changes; retain
   results on failures/cancellation. Downloading a visible result cancels search.
+- Input must stay editable throughout each live-search transition, not only at
+  the end of a callback. Do not force the keyboard back open after native dismissal.
 - English default and Hebrew Wikipedia option; remember search language.
 - Use the native reMarkable keyboard, not an app-owned keyboard. Open it from
   the query field/Keyboard button, reserve its actual overlap above the results,
@@ -75,6 +77,11 @@
   36 Qt checks plus Go/race/vet pass. Backend/state/icon/runtime preserved.
 - NEXT: physically check native keyboard, language
   selection, Enter, backspace and results above it. No automatic Move install.
+- DONE: v0.3.1 physical test found keyboard dismissal on live search. v0.3.2
+  fixes transient read-only state on start/cancel; regression reproduces old
+  failure and passes after fix. Installed UI-only via wiki-ui-20261001T204553Z;
+  38 Qt checks and Go/race/vet pass. Backend/state/icon/runtime unchanged.
+- NEXT: physically recheck repeated typing/pauses and intentional dismissal.
 - Independently qualify Move; do not infer support from desktop layout tests.
 
 * Changed requirements

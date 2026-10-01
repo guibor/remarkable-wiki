@@ -83,13 +83,14 @@ only its cached source PDF. An unresolved ID retains that cache for verification
 
 | Target | Status |
 | --- | --- |
-| Paper Pro, 3.29.0.148, AppLoad 0.6.0 | Owner's recording confirms refresh/import/Open on v0.2.2. v0.3.1 installed with native keyboard, incremental search and quiet refresh; 36 UI checks and Go/race/vet pass. Physical native-keyboard/live-search QA pending |
+| Paper Pro, 3.29.0.148, AppLoad 0.6.0 | Owner's recordings confirm refresh/import/Open and native keyboard display. v0.3.2 keyboard-persistence fix installed; 38 UI checks and Go/race/vet pass. Physical persistence recheck pending |
 | Paper Pro Move | Responsive UI covered by desktop mocks; not installed or device-qualified |
 | Other firmware/devices | Not yet qualified |
 
-v0.3.1 native-keyboard integration passes 36 Qt checks and Go/race/vet. These
-tests mock the system input method; actual keyboard visibility/layout selection
-and typing on-device remain separate acceptance checks. See the dated log.
+v0.3.2 corrects a brief input-lock transition that dismissed the native keyboard
+when live search started or was cancelled. All 38 Qt checks and Go/race/vet pass,
+including intermediate read-only-state checks. Tests mock the system input
+method; physical persistence/layout selection remain separate acceptance checks.
 
 Installing the app **does not** install AppLoad or XOVI, replace other apps,
 patch the editor, change the boot process, or restart the tablet. It uses the
