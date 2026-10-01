@@ -10,12 +10,20 @@ actually complete. Also finish the on-device v0.1.1 keyboard recheck.
 
 ## Title
 
-I made a small app to search Wikipedia and download articles as PDFs on the reMarkable
+Wikipedia on the reMarkable without turning it into a browser
 
 ## Post
 
-I wanted to look something up on Wikipedia and read it on my reMarkable without
-having to get my phone or computer involved. So I made a small app for it.
+I don't think e-readers need to become browsers. As much as possible, I want to
+stay in reading mode: open a document, read it, highlight things, write in the
+margins. Use the device for what it's good at.
+
+But sometimes what's missing is just the link between something you want to
+read and getting it onto the device. You shouldn't need to pick up your phone
+or laptop, find the article, make a PDF and send it over every time.
+
+That's the idea behind this little Wikipedia app. Not browsing Wikipedia on
+the reMarkable, but getting a Wikipedia article into the reader.
 
 You open it from AppLoad, search for an article, and tap the PDF button. It adds
 the article to My files, where you can read it and annotate it like any other
@@ -24,10 +32,6 @@ PDF. That's basically it.
 It talks directly to Wikipedia. No account, API key or server of mine in the
 middle. You do need Wi-Fi to search and download; once the PDF is there, you
 can read it offline. English and Hebrew are supported for now.
-
-One detail I cared about: the results stay there while you're editing the
-query. Search or Enter runs the next search, so things don't keep disappearing
-while you're trying to pick an article.
 
 I've been using it on my Paper Pro on 3.29.0.148 with AppLoad 0.6.0, and the
 search → PDF → My files flow works. I haven't qualified it on the Move yet,
@@ -44,4 +48,6 @@ A couple of caveats: PDF generation depends on Wikipedia's service, and the
 downloaded PDF follows your normal reMarkable cloud-sync settings. This isn't
 a way to keep documents out of the cloud.
 
-Curious if others would find this useful, and what you'd want to improve.
+I'd like more of these small connections to things we want to read, while
+keeping the actual reading in the device's own reader. Curious if others see
+it that way too, and what else you'd want to get onto yours this easily.

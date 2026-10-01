@@ -1,5 +1,13 @@
 # Design
 
+## Reading first
+
+The app fills the gap between finding an article and reading it as a native
+document. It deliberately ends at PDF import: reading, highlighting and
+annotation belong in the device's own reader, not an embedded browser. The
+Reddit draft leads with this product principle rather than implementation
+details or keyboard-fix release notes.
+
 ## Modules
 
 `internal/wiki` owns Wikimedia-only HTTPS URLs, bounded REST search responses,

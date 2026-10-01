@@ -2,6 +2,9 @@
 
 * Requirements
 - Separate repository and maintained package for Wikipedia search/PDF reading.
+- Reading-first product and announcement: provide the missing connection from
+  desired content to a PDF in the native reader, rather than turn the e-reader
+  into a browser. Keep reading/highlighting/annotation in the existing reader.
 - Search and PDF generation use Wikipedia's public services directly from the
   tablet. No dependency on md-server, API keys, desktop or reMarkable cloud API.
 - Search box, readable results, direct Download action, honest progress/errors.

@@ -62,3 +62,9 @@ UI-only upgrades, troubleshooting and honest per-device qualification.
 voice. Repository remains private with no public release. A public announcement
 requires the owner's visibility/license decision and current subreddit-rule
 review; no post or public-release action was taken.
+
+The owner refined the announcement's central point: e-readers should stay
+focused on reading and PDFs; the missing piece is often simply getting desired
+content onto them. Revised the draft's title/opening/closing around that idea
+and removed the distracting keyboard-fix paragraph. This is a framing change,
+not a browser feature or a new implementation scope. No publication occurred.
