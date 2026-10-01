@@ -1,2 +1,3 @@
 module xofm.libs.library
 singleton DocumentImporter 1.0 DocumentImporter.qml
+singleton Library 1.0 Library.qml

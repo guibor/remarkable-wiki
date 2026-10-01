@@ -21,6 +21,14 @@ User refreshes AppLoad's list and opens Wikipedia.
 
 ## Existing app / later OS
 
+v0.2.1 corrects the missing Open PDF button using native library-ID signals and
+source-PDF hash verification; it requires **backendProtocol 3**. Use the full
+`scripts/update-pro.sh VERIFIED_IP` path while Wikipedia is closed, not the
+UI-only script. Preserve state and any unresolved cached PDFs. After installation,
+download a new article and require both `Wiki: saved PDF identity verified; Open
+PDF enabled` in the app log and a physical tap that opens the right document.
+The older root-import success and desktop mock do not qualify this action.
+
 For **v0.2.0 folder destinations and Open PDF**, run the tests/build and close
 Wikipedia, then `RM_SSH_KEY=... bash scripts/update-pro.sh VERIFIED_IP`.
 This explicitly updates the static backend with the UI using the same verified

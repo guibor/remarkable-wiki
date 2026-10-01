@@ -33,6 +33,8 @@ Rectangle {
     property string savedDocumentTitle: ""
     property string savedToken: ""
     property bool historyPending: false
+    property var importCandidates: []
+    property int resolveAttempts: 0
     property string importUrl: ""
     property string importToken: ""
     property string importTitle: ""
@@ -47,7 +49,7 @@ Rectangle {
         endpoint.sendMessage(1, JSON.stringify(payload))
     }
     function search() {
-        if (!ready || busy || query.text.trim().length === 0) return
+        if (!ready || busy || historyPending || query.text.trim().length === 0) return
         submittedQuery = query.text.trim(); submittedLanguage = language
         transferPhase = ""
         query.focus = false; root.forceActiveFocus()
@@ -55,7 +57,7 @@ Rectangle {
         status = "Searching Wikipedia…"; request("search", {query: query.text})
     }
     function download(page) {
-        if (!ready || busy || !importerAvailable) return
+        if (!ready || busy || historyPending || !importerAvailable) return
         requestId++; busy = true; keyboardOpen = false
         transferPhase = "preparing"; transferProgress = -1
         savedDocumentId = ""; savedDocumentTitle = ""
@@ -63,7 +65,7 @@ Rectangle {
         request("download", {page: page, language: resultsLanguage})
     }
     function openFolders() {
-        if (!ready || busy) return
+        if (!ready || busy || historyPending) return
         query.focus = false; root.forceActiveFocus(); keyboardOpen = false
         folderPickerOpen = true; busy = true; requestId++
         status = "Loading folders…"; request("folders")
@@ -96,7 +98,12 @@ Rectangle {
         return {host: host, launcher: launcher}
     }
     function openSaved() {
-        if (!savedDocumentId || busy || historyPending) return
+        if (busy || historyPending) return
+        if (!savedDocumentId) {
+            resolveAttempts = 0; historyPending = true
+            status = "Finding the saved PDF…"; resolveTimer.restart()
+            return
+        }
         let target = readerHost()
         if (!target.host) {
             status = "PDF saved. Open it in " + importDestination.name + "; the reader shortcut is unavailable."
@@ -114,14 +121,23 @@ Rectangle {
         if (!importing || !matches(url)) return
         importTimeout.stop(); importing = false; busy = false
         transferPhase = "complete"; transferProgress = 1
-        try { savedDocumentId = document && document.id ? String(document.id) : "" } catch (_) { savedDocumentId = "" }
+        // Firmware exposes shared_ptr<Document>, not a QML entry wrapper.
+        // Use Library.entryImported IDs, verified against our source PDF.
+        savedDocumentId = ""
         savedDocumentTitle = importTitle; savedToken = importToken
-        historyPending = true; historyTimeout.restart()
+        historyPending = true; resolveAttempts = 0; historyTimeout.restart()
         status = "Added to " + importDestination.name + ": " + importTitle
         request("imported", {token: importToken})
         console.log("Wiki: native import completed")
         importUrl = ""
     }
+    function entryImported(name, id) {
+        if (!importing && !historyPending) return
+        let candidate = String(id).replace(/^\{/, "").replace(/\}$/, "")
+        if (/^[0-9a-fA-F-]{36}$/.test(candidate) && importCandidates.indexOf(candidate) < 0)
+            importCandidates = importCandidates.concat([candidate])
+    }
+    function entryAdded(id) { entryImported("", id) }
     function failed(url) {
         if (!importing || !matches(url)) return
         importTimeout.stop(); importing = false; busy = false
@@ -136,12 +152,20 @@ Rectangle {
             DocumentImporter.imported.disconnect(root.imported)
             DocumentImporter.failed.disconnect(root.failed)
         }
+        if (typeof Library !== "undefined") {
+            Library.entryImported.disconnect(root.entryImported)
+            Library.entryAdded.disconnect(root.entryAdded)
+        }
         endpoint.terminate()
     }
     Component.onCompleted: {
         if (importerAvailable) {
             DocumentImporter.imported.connect(root.imported)
             DocumentImporter.failed.connect(root.failed)
+        }
+        if (typeof Library !== "undefined") {
+            Library.entryImported.connect(root.entryImported)
+            Library.entryAdded.connect(root.entryAdded)
         }
         console.log("Wiki: UI ready; importer=" + importerAvailable)
     }
@@ -155,7 +179,17 @@ Rectangle {
             let m
             try { m = JSON.parse(contents) } catch (_) { return }
             if (m.kind === "recorded" && m.token === root.savedToken) {
-                root.historyPending = false; historyTimeout.stop()
+                historyTimeout.stop(); resolveTimer.restart()
+                return
+            }
+            if (m.kind === "resolved" && m.token === root.savedToken) {
+                if (m.documentId) {
+                    root.savedDocumentId = m.documentId; root.historyPending = false
+                    resolveTimer.stop(); historyTimeout.stop()
+                    root.status = "Saved in " + root.importDestination.name + ". Tap Open PDF to read it."
+                    console.log("Wiki: saved PDF identity verified; Open PDF enabled")
+                }
+                return
             }
             if (m.kind === "ready") {
                 if (root.ready) return
@@ -187,6 +221,7 @@ Rectangle {
                 root.importing = true
                 root.request("import-started", {token: m.token})
             } else if (m.kind === "import") {
+                root.importCandidates = []
                 root.transferPhase = "importing"
                 root.importUrl = m.url; root.importing = true
                 root.importDestination = m.destination || {id: "", name: "My files"}
@@ -195,11 +230,28 @@ Rectangle {
                 catch (e) { root.failed(m.url); console.log("Wiki: import invocation failed: " + e) }
             } else if (m.kind === "error" || m.kind === "existing") {
                 root.busy = false; root.importing = false; root.status = m.message
-                if (root.transferPhase !== "") root.transferPhase = m.kind === "existing" ? "existing" : "error"
+                if (root.transferPhase === "complete") {
+                    root.historyPending = false; resolveTimer.stop(); historyTimeout.stop()
+                } else if (m.kind === "existing" && m.documentId) {
+                    root.savedDocumentId = m.documentId; root.savedDocumentTitle = m.title
+                    root.importDestination = m.destination; root.savedToken = m.token
+                    root.transferPhase = "complete"; root.historyPending = false
+                } else if (root.transferPhase !== "") root.transferPhase = m.kind === "existing" ? "existing" : "error"
             } else if (m.kind === "cancelled") {
                 root.busy = false; root.status = "Cancelled."
                 root.transferPhase = ""
             }
+        }
+    }
+    Timer {
+        id: resolveTimer; interval: 400; repeat: true
+        onTriggered: {
+            if (++root.resolveAttempts > 15) {
+                stop(); root.historyPending = false
+                root.status = "PDF saved in " + root.importDestination.name + ". Tap Open PDF to retry locating it."
+                return
+            }
+            root.request("resolve-import", {token: root.savedToken, candidateIds: root.importCandidates})
         }
     }
     Timer {
@@ -327,7 +379,7 @@ Rectangle {
                     }
                     WikiButton {
                         objectName: "wiki-open-pdf"
-                        visible: root.transferPhase === "complete" && root.savedDocumentId !== ""
+                        visible: root.transferPhase === "complete"
                         text: "Open PDF"; primary: true; textSize: 27 * root.u
                         Layout.preferredWidth: 185 * root.u; Layout.preferredHeight: 82 * root.u
                         enabled: !root.busy && !root.historyPending

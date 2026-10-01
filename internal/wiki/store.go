@@ -14,6 +14,7 @@ type Record struct {
 	Path        string      `json:"path"`
 	Status      string      `json:"status"`
 	Destination Destination `json:"destination"`
+	DocumentID  string      `json:"documentId,omitempty"`
 }
 type Store struct {
 	Language    string            `json:"language"`

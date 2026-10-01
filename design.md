@@ -49,8 +49,17 @@ Import-in-progress persists separately so closing mid-import never triggers an
 automatic duplicate import. A timeout reports uncertainty, not false success.
 
 The transfer panel distinguishes download, native import, success and failure.
-Only the matching native `imported` signal populates the saved document ID.
-`openSaved()` waits for history acknowledgment (bounded timeout), then uses the
+The matching native `imported` signal confirms success but does not expose a
+usable `.id`: its argument is an opaque `std::shared_ptr<Document>`. v0.2.0
+incorrectly assumed a QML entry wrapper, which hid the Open button on device.
+v0.2.1 collects candidate IDs from the native Library `entryAdded` and
+`entryImported` signals during the import. `MatchImportedPDF` verifies the
+candidate's native parent and PDF SHA256 against the app-owned source, rejects
+ambiguity, and persists the verified document ID. No title/time guessing or
+library writes. The cached source is removed only after this verification.
+The Open button stays visible after native success while bounded retries wait
+for the library ID/file; it enables when resolved and offers retry on timeout.
+`openSaved()` waits for history/identity verification, then uses the
 existing stock main view's `windowNavigator.open` route with that exact ID.
 `readerHost()` performs a bounded visual-tree lookup for the stock main view
 and AppLoad launcher. Opening hides the launcher and closes only this app; it

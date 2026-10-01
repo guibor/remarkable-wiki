@@ -21,6 +21,7 @@ type Request struct {
 	Page          wiki.Page `json:"page"`
 	Token         string    `json:"token"`
 	DestinationID string    `json:"destinationId"`
+	CandidateIDs  []string  `json:"candidateIds"`
 }
 type operation struct {
 	request     Request
@@ -152,6 +153,31 @@ func run() error {
 			switch r.Action {
 			case "hello":
 				hello()
+			case "resolve-import":
+				rec, ok := store.Records[r.Token]
+				if !ok || rec.Status != "imported" {
+					errmsg(r.ID, fmt.Errorf("native import has not completed"))
+					continue
+				}
+				if rec.DocumentID == "" {
+					id, e := wiki.MatchImportedPDF(library, rec.Path, rec.Destination.ID, r.CandidateIDs)
+					if e != nil {
+						errmsg(r.ID, fmt.Errorf("PDF is saved, but its open shortcut could not be verified: %w", e))
+						continue
+					}
+					if id != "" {
+						rec.DocumentID = id
+						previous := store.Records[r.Token]
+						store.Records[r.Token] = rec
+						if e := store.Save(); e != nil {
+							store.Records[r.Token] = previous
+							errmsg(r.ID, e)
+							continue
+						}
+						_ = os.Remove(rec.Path) // Only the cached source, after native success + ID verification.
+					}
+				}
+				send(map[string]any{"kind": "resolved", "id": r.ID, "token": r.Token, "documentId": rec.DocumentID})
 			case "folders":
 				folders, e := wiki.ListFolders(library)
 				if e != nil {
@@ -201,7 +227,7 @@ func run() error {
 						if rec.Status == "importing" {
 							message = "Import was started earlier. Check My files before downloading again."
 						}
-						send(map[string]any{"kind": "existing", "id": r.ID, "message": message})
+						send(map[string]any{"kind": "existing", "id": r.ID, "message": message, "documentId": rec.DocumentID, "title": rec.Title, "destination": rec.Destination, "token": token})
 						continue
 					}
 					var e error
@@ -267,9 +293,7 @@ func run() error {
 						errmsg(r.ID, e)
 						continue
 					}
-					if rec.Status == "imported" {
-						_ = os.Remove(rec.Path)
-					} // Only our cached copy, after native success.
+					// Keep the cached source until resolve-import verifies the native ID.
 					send(map[string]any{"kind": "recorded", "id": r.ID, "status": rec.Status, "token": r.Token})
 				}
 			}

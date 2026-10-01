@@ -20,6 +20,14 @@ Google Drive, API key, or desktop companion is involved.
    open that exact newly imported document in the native reader. You can also
    close the app and find it in the saved location shown in the panel.
 
+The Open button remains visible while the app briefly verifies which native
+document was imported. v0.2.1 fixes the missing button in v0.2.0: the firmware's
+import callback did not expose the document ID as originally assumed. New
+imports use native library notifications plus an exact PDF-content check.
+Verified IDs are saved, so selecting an already-imported article can offer Open
+without importing another copy. Older imports without a recorded ID still
+remain available in the normal library; the app will not guess by title.
+
 ### Choose a folder
 
 Under the search box, **Save to: My files → Change** opens the folder picker.
@@ -46,7 +54,8 @@ Downloads are bounded to 64 MB and 90 seconds. You can cancel network work.
 Already imported articles are not automatically duplicated. If the app closes
 mid-import, it asks you to check My files instead of assuming failure and
 creating another copy. A failed native import can be retried using the saved
-download. Successful imports remove only the app's cached source PDF.
+download. After native success and document-ID verification, the app removes
+only its cached source PDF. An unresolved ID retains that cache for verification.
 
 ## Compatibility and current evidence
 

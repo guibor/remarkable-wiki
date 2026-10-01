@@ -19,6 +19,9 @@
   with the folder ID, not filesystem moves or library metadata writes.
 - Show a prominent download/import status panel with article and progress.
   After matching native success, offer Open PDF for that exact imported document.
+- Open PDF must remain visible after native import even when the callback's
+  document object is opaque. Resolve the real native ID, verify the exact PDF,
+  and persist it for subsequent opens; do not infer IDs from titles.
 - New PDFs follow normal device sync policy; this is not a
   cloud-exclusion feature. No claims of offline search or local PDF rendering.
 - AppLoad entry, self-contained app payload, preserve all other installed apps.
@@ -38,9 +41,15 @@
   backend enumerated 35 available folders read-only.
 - NEXT: physical chosen-folder import and Open PDF acceptance. Publication and repository
   visibility changes require a separate decision.
+- v0.2.0 physical Open check FAILED: button hidden by opaque native callback.
+  v0.2.1 fix built/tested; installation awaits closing Wikipedia on the Pro.
+  Then require real ID-verification log and physical Open acceptance.
 - Independently qualify Move; do not infer support from desktop layout tests.
 
 * Changed requirements
+- 2026-10-01: physical v0.2.0 check found Open PDF missing. The mock exposed an
+  ID that the real native shared_ptr callback does not; replaced that assumption
+  with native library signals plus PDF-byte/parent verification.
 - 2026-10-01: previously all PDFs went to My files and required manual opening.
   Added a saved destination-folder picker (My files remains the default), a
   prominent transfer panel and a native-success-gated Open PDF shortcut.

@@ -41,14 +41,23 @@ TestCase {
         receive({kind: "import", id: app.requestId, url: "file:///tmp/article.pdf", destination: {id: "folder-one", name: "My files / Reading"}})
         DocumentImporter.imported({id: "wrong-document"}, null, "file:///tmp/other.pdf")
         compare(app.savedDocumentId, "")
-        DocumentImporter.imported({id: "exact-native-document-id"}, null, "file:///tmp/article.pdf")
+        // Actual firmware passes an opaque shared_ptr, not a QML object with id.
+        let exactId = "11111111-1111-4111-8111-111111111111"
+        Library.entryImported("Earth", exactId)
+        DocumentImporter.imported({}, null, "file:///tmp/article.pdf")
         compare(app.transferPhase, "complete"); verify(findChild(app, "wiki-open-pdf").visible)
         verify(!findChild(app, "wiki-open-pdf").enabled)
         receive({kind: "recorded", id: app.requestId, token: "earth-token", status: "imported"})
+        verify(!findChild(app, "wiki-open-pdf").enabled)
+        wait(450)
+        let sent = findChild(app, "wiki-endpoint").sent
+        compare(sent[sent.length - 1].action, "resolve-import")
+        compare(sent[sent.length - 1].candidateIds[0], exactId)
+        receive({kind: "resolved", id: app.requestId, token: "earth-token", documentId: exactId})
         verify(findChild(app, "wiki-open-pdf").enabled)
         app.openSaved()
         compare(navigatorMock.lastRoute, "legacydevice/window/main")
-        compare(navigatorMock.lastArguments.documentId, "exact-native-document-id")
+        compare(navigatorMock.lastArguments.documentId, exactId)
         verify(!launcher.visible); verify(closed)
     }
     function test_open_failure_keeps_saved_pdf_and_app_available() {
@@ -56,6 +65,22 @@ TestCase {
         app.openSaved()
         verify(app.status.indexOf("shortcut is unavailable") >= 0)
         compare(app.savedDocumentId, "a-document")
+    }
+    function test_late_native_id_keeps_open_button_visible() {
+        app.ready = true; app.importing = true; app.importUrl = "file:///tmp/late.pdf"
+        app.importTitle = "Late callback"; app.importToken = "late-token"
+        DocumentImporter.imported({}, null, "file:///tmp/late.pdf")
+        verify(findChild(app, "wiki-open-pdf").visible)
+        compare(app.savedDocumentId, "")
+        let id = "22222222-2222-4222-8222-222222222222"
+        Library.entryAdded(id)
+        Library.entryImported("Late callback", id)
+        compare(app.importCandidates.length, 1)
+        receive({kind: "recorded", id: app.requestId, token: "late-token", status: "imported"})
+        receive({kind: "resolved", id: app.requestId, token: "unrelated-token", documentId: id})
+        compare(app.savedDocumentId, "")
+        receive({kind: "resolved", id: app.requestId, token: "late-token", documentId: id})
+        verify(findChild(app, "wiki-open-pdf").enabled)
     }
     function test_folder_selection_preserves_results_and_waits_for_save() {
         seedResults(); compare(app.destination.name, "My files")
