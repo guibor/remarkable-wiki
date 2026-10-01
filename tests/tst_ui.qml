@@ -10,6 +10,15 @@ TestCase {
     width: 1000; height: 1350
     Component { id: factory; Main {} }
     QtObject {
+        id: keyboardMock
+        property bool visible: false
+        property rect keyboardRectangle: Qt.rect(0, 900, 1000, 450)
+        property int shows: 0
+        property int hides: 0
+        function show() { shows++; visible = true }
+        function hide() { hides++; visible = false }
+    }
+    QtObject {
         id: navigatorMock
         property string lastRoute: ""
         property var lastArguments: ({})
@@ -25,8 +34,64 @@ TestCase {
     }
     Component { id: launcherFactory; Item { property url source: "qrc:/appload/qml/appload.qml" } }
     property var app
-    function init() { app = createTemporaryObject(factory, this, {width: 1000, height: 1350}); verify(app) }
+    function init() {
+        keyboardMock.visible = false; keyboardMock.shows = 0; keyboardMock.hides = 0
+        keyboardMock.keyboardRectangle = Qt.rect(0, 900, 1000, 450)
+        app = createTemporaryObject(factory, this, {width: 1000, height: 1350, inputMethod: keyboardMock}); verify(app)
+    }
     function test_import_available() { verify(app.importerAvailable) }
+    function test_native_keyboard_tap_toggle_and_geometry() {
+        seedResults()
+        verify(keyboardMock.shows > 0); verify(app.keyboardOpen)
+        compare(app.keyboardInset, 450)
+        let layout = findChild(app, "wiki-main-layout")
+        wait(30)
+        verify(layout.y + layout.height <= 900)
+        verify(findChild(app, "wiki-results").height > 174 * app.u)
+        keyboardMock.keyboardRectangle = Qt.rect(0, 750, 1000, 600)
+        compare(app.keyboardInset, 600)
+        keyboardMock.visible = false // Keyboard's own close control.
+        compare(app.keyboardInset, 0); verify(!app.keyboardOpen)
+        let toggle = findChild(app, "wiki-keyboard-toggle")
+        toggle.clicked(); verify(app.keyboardOpen)
+        toggle.clicked(); verify(!app.keyboardOpen)
+    }
+    function test_keyboard_rect_handles_scaled_app_and_resized_window() {
+        seedResults()
+        app.anchors.fill = undefined; app.width = 1000; app.height = 1350
+        app.transformOrigin = Item.TopLeft; app.scale = 0.5
+        keyboardMock.keyboardRectangle = Qt.rect(0, 450, 500, 225)
+        compare(app.keyboardInset, 450)
+        // If a window already shrank above the keyboard, don't subtract twice.
+        app.scale = 1; app.height = 450
+        compare(app.keyboardInset, 0)
+        keyboardMock.keyboardRectangle = Qt.rect(0, 0, 0, 0)
+        compare(app.keyboardInset, 0)
+    }
+    function test_native_editing_backspace_and_hebrew_search() {
+        seedResults(); app.language = "he"
+        let query = findChild(app, "wiki-query")
+        query.text = "שלוםx"; query.cursorPosition = query.text.length
+        query.forceActiveFocus(); keyClick(Qt.Key_Backspace)
+        compare(query.text, "שלום")
+        keyClick(Qt.Key_Return)
+        let sent = findChild(app, "wiki-endpoint").sent.filter(m => m.action === "search")
+        compare(sent.length, 1); compare(sent[0].query, "שלום"); compare(sent[0].language, "he")
+        verify(!keyboardMock.visible)
+    }
+    function test_download_and_close_hide_native_keyboard() {
+        seedResults(); app.download(app.results[0])
+        verify(!keyboardMock.visible); verify(!findChild(app, "wiki-query").activeFocus)
+        app.busy = false; app.showKeyboard(); verify(keyboardMock.visible)
+        let closed = false; app.close.connect(function() { closed = true })
+        app.closeApp(); verify(closed); verify(!keyboardMock.visible)
+    }
+    function test_query_typed_before_backend_ready_is_searched() {
+        findChild(app, "wiki-query").text = "Earth"
+        verify(!app.searching)
+        receive({kind: "ready", language: "en"})
+        tryCompare(app, "searching", true, 800)
+    }
     function test_open_requires_native_success_and_opens_exact_document() {
         let host = createTemporaryObject(readerFactory, this)
         let launcher = createTemporaryObject(launcherFactory, this)
@@ -148,7 +213,8 @@ TestCase {
         verify(!app.searching); compare(app.results[0].title, "Earth")
         tryCompare(app, "searching", true, 800)
         verify(app.keyboardOpen); verify(!query.readOnly)
-        verify(findChild(app, "wiki-keyboard").enabled)
+        compare(keyboardMock.hides, 0)
+        verify(findChild(app, "wiki-keyboard") === null)
         verify(findChild(app, "wiki-download").enabled)
         let sent = findChild(app, "wiki-endpoint").sent.filter(m => m.action === "search")
         compare(sent.length, 1); compare(sent[0].query, "Moon")
@@ -228,6 +294,7 @@ TestCase {
     function receive(message) { findChild(app, "wiki-endpoint").messageReceived(100, JSON.stringify(message)) }
     function seedResults() {
         receive({kind: "ready", language: "en"})
+        app.showKeyboard()
         app.resultsQuery = "Earth"
         app.results = [
             {title: "Earth", key: "Earth", description: "Third planet from the Sun"},
@@ -236,14 +303,14 @@ TestCase {
         ]
     }
     function test_typing_and_keyboard_do_not_hide_results() {
-        seedResults(); app.keyboardOpen = false
+        seedResults(); app.hideKeyboard()
         let endpoint = findChild(app, "wiki-endpoint")
         let query = findChild(app, "wiki-query")
         let list = findChild(app, "wiki-results")
         let toggle = findChild(app, "wiki-keyboard-toggle")
         toggle.clicked(); verify(app.keyboardOpen)
         query.forceActiveFocus(); keyClick(Qt.Key_M)
-        findChild(app, "wiki-keyboard").key("oon")
+        query.insert(query.cursorPosition, "oon")
         wait(50)
         compare(app.results[0].title, "Earth"); compare(app.resultsQuery, "Earth")
         verify(list.visible); verify(list.height > 174 * app.u)
@@ -290,10 +357,11 @@ TestCase {
     }
     function test_touch_search_submits_once_and_resets_page_on_success() {
         seedResults(); app.resultPage = 1
-        let keyboard = findChild(app, "wiki-keyboard")
-        keyboard.key("Mars"); compare(app.requestId, 0)
-        keyboard.key("SEARCH"); compare(app.requestId, 1)
-        keyboard.key("SEARCH"); compare(app.requestId, 1)
+        let query = findChild(app, "wiki-query")
+        query.insert(0, "Mars"); compare(app.requestId, 0)
+        let search = findChild(app, "wiki-search")
+        search.clicked(); compare(app.requestId, 1)
+        search.clicked(); compare(app.requestId, 1)
         compare(app.resultPage, 1)
         receive({kind: "results", id: 1, pages: [{title: "Mars"}]})
         compare(app.resultPage, 0); compare(app.resultsQuery, "Mars")
@@ -312,19 +380,19 @@ TestCase {
     function test_snapshot() {
         app.ready = true; app.status = "Search Wikipedia. Download an article to My files."
         wait(100); let first = grabImage(app); verify(first.width > 0); first.save("/tmp/remarkable-wiki-search.png")
-        app.keyboardOpen = false; app.resultsQuery = "Earth"; app.results = [
+        app.hideKeyboard(); app.resultsQuery = "Earth"; app.results = [
             {title: "Earth", description: "Third planet from the Sun"},
             {title: "Earth science", description: "Branches of natural science related to the planet Earth"},
             {title: "History of Earth", description: "Development of planet Earth from its formation to the present"},
             {title: "Earth's magnetic field", description: "Magnetic field that extends from Earth's inner core into space"}
         ]; app.status = "Choose an article to download as PDF."
         wait(100); let second = grabImage(app); verify(second.width > 0); second.save("/tmp/remarkable-wiki-results.png")
-        app.keyboardOpen = true
+        app.showKeyboard()
         wait(100); let third = grabImage(app); verify(third.width > 0); third.save("/tmp/remarkable-wiki-results-keyboard.png")
         app.folderPickerOpen = true; app.status = "Choose where new PDFs will be saved."
         app.folders = [{id: "one", name: "My files / Reading"}, {id: "two", name: "My files / Reading / Wikipedia"}, {id: "three", name: "My files / לימוד"}]
         wait(100); grabImage(app).save("/tmp/remarkable-wiki-folders.png")
-        app.folderPickerOpen = false; app.keyboardOpen = false
+        app.folderPickerOpen = false; app.hideKeyboard()
         app.transferPhase = "downloading"; app.transferProgress = 0.6; app.importTitle = "Earth"
         app.status = "Downloading PDF · 2.6 MB / 4.4 MB"; app.busy = true
         wait(100); grabImage(app).save("/tmp/remarkable-wiki-downloading.png")

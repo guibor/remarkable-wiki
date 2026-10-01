@@ -15,6 +15,8 @@
   stable incremental search, responsive e-ink UI, native document import with
   remembered destination, prominent progress/errors and a dominant quick-open
   action after native success; quiet explicit refresh preserves older copies.
+- Native reMarkable keyboard and existing device keyboard settings; Wikipedia
+  search-language selection is separate from keyboard-layout selection.
 - Out of scope: md-server, API keys, notebook-file rewriting, cloud API clients,
   firmware patches, bundled browser/PDF renderer, unattended batch scraping.
 - Success: Wikipedia PDF downloaded on device and accepted by the native library;

@@ -21,6 +21,14 @@ User refreshes AppLoad's list and opens Wikipedia.
 
 ## Existing app / later OS
 
+v0.3.1 replaces the custom keyboard with Qt.inputMethod show/hide/geometry.
+Backend remains protocol 4: use the UI-only updater on installed v0.2.2+ while
+Wikipedia is closed. The custom Keyboard.qml is removed from resources. No
+global keyboard settings or firmware changes. Verify field tap → native keyboard,
+results above its top edge, native backspace and Enter, no closure during live
+search, and dismissal on Download/Close. Check native language choices separately
+from the Wiki language toggle. Desktop mocks cannot prove native layout support.
+
 v0.3.0 adds incremental search and a quiet Refresh article link. Backend protocol
 remains 4, so on an installed v0.2.2 use `scripts/update-pro-ui.sh VERIFIED_IP`
 with Wikipedia closed. Test typing, new edits during in-flight searches, selecting

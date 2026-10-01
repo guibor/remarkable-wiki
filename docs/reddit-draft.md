@@ -21,7 +21,7 @@ Suggested caption: “From a Wikipedia result to a PDF in the normal reMarkable
 reader. Here I'm refreshing an article I'd already downloaded. Waiting trimmed.”
 
 The clip is v0.2.2 footage: it shows the older Download again button, not the
-new Refresh article text link or search-as-you-type. Do not present it as a
+new Refresh article text link, native-only keyboard or search-as-you-type. Do not present it as a
 demo of incremental search. Reproduce the cut with
 `bash scripts/make-reddit-demo.sh /path/to/the-original-recording.mov`.
 
@@ -47,7 +47,7 @@ the article to My files, or a folder you choose. Once it's saved, tap Open PDF
 and you're back in the normal reader, reading and annotating it like any other
 document. That's basically it.
 
-Results now update as you type, without the keyboard disappearing. Open PDF is
+Results now update as you type, using the native reMarkable keyboard. Open PDF is
 the main action once the download is ready. There's also a small Refresh article
 link if you want to fetch another copy later; it leaves the old PDF and its
 annotations alone. The clip was recorded just before those UI refinements, so

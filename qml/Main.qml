@@ -15,7 +15,18 @@ Rectangle {
     property bool busy: false
     property bool searching: false
     readonly property bool controlsLocked: (busy && !searching) || importing || historyPending
-    property bool keyboardOpen: true
+    // Injectable only for desktop tests; production uses the system input method.
+    property var inputMethod: Qt.inputMethod
+    readonly property bool keyboardOpen: inputMethod.visible
+    readonly property real keyboardInset: {
+        let rectangle = inputMethod.keyboardRectangle
+        if (!keyboardOpen || rectangle.width <= 0 || rectangle.height <= 0) return 0
+        let window = root.Window.window
+        if (!window) return 0
+        let local = root.mapFromItem(window.contentItem, rectangle.x, rectangle.y, rectangle.width, rectangle.height)
+        if (local.x >= root.width || local.x + local.width <= 0 || local.y >= root.height || local.y + local.height <= 0) return 0
+        return Math.max(0, Math.min(root.height, root.height - local.y))
+    }
     property bool importing: false
     property string status: "Connecting…"
     property int requestId: 0
@@ -46,6 +57,16 @@ Rectangle {
     property bool disposed: false
     readonly property bool importerAvailable: typeof DocumentImporter !== "undefined" && typeof DocumentImporter.importFromUrls === "function"
 
+    function showKeyboard() {
+        if (controlsLocked || folderPickerOpen || disposed) return
+        query.forceActiveFocus()
+        inputMethod.show()
+    }
+    function hideKeyboard() {
+        query.focus = false; root.forceActiveFocus()
+        inputMethod.hide()
+    }
+    function closeApp() { hideKeyboard(); root.close() }
     function request(action, fields) {
         let payload = fields || {}
         payload.action = action
@@ -70,7 +91,7 @@ Rectangle {
         if (!ready || controlsLocked || folderPickerOpen || query.text.trim().length === 0) return
         liveSearch.stop()
         if (automatic !== true) {
-            query.focus = false; root.forceActiveFocus(); keyboardOpen = false
+            hideKeyboard()
         }
         if (searching && submittedQuery === query.text.trim() && submittedLanguage === language) return
         stopSearch()
@@ -85,7 +106,8 @@ Rectangle {
         selectedPage = page; selectedLanguage = articleLanguage || resultsLanguage
         canRefresh = false; savedToken = ""
         resolveTimer.stop(); historyTimeout.stop()
-        requestId++; busy = true; keyboardOpen = false
+        hideKeyboard()
+        requestId++; busy = true
         transferPhase = "preparing"; transferProgress = -1
         savedDocumentId = ""; savedDocumentTitle = ""
         importTitle = page.title; status = "Preparing PDF: " + page.title
@@ -98,7 +120,7 @@ Rectangle {
     function openFolders() {
         if (!ready || controlsLocked) return
         stopSearch()
-        query.focus = false; root.forceActiveFocus(); keyboardOpen = false
+        hideKeyboard()
         folderPickerOpen = true; busy = true; requestId++
         status = "Loading folders…"; request("folders")
     }
@@ -132,6 +154,7 @@ Rectangle {
     function openSaved() {
         if (controlsLocked) return
         stopSearch()
+        hideKeyboard()
         if (!savedDocumentId) {
             resolveAttempts = 0; historyPending = true
             status = "Finding the saved PDF…"; resolveTimer.restart()
@@ -183,6 +206,7 @@ Rectangle {
         if (disposed) return
         disposed = true
         liveSearch.stop()
+        if (query.activeFocus) inputMethod.hide()
         if (importerAvailable) {
             DocumentImporter.imported.disconnect(root.imported)
             DocumentImporter.failed.disconnect(root.failed)
@@ -231,6 +255,7 @@ Rectangle {
                 root.ready = true; root.language = m.language || "en"; handshake.stop()
                 root.destination = m.destination || {id: "", name: "My files"}
                 root.status = root.importerAvailable ? "Type to search Wikipedia. Download an article as a PDF." : "This firmware's native PDF importer is unavailable."
+                if (query.text.trim().length >= 2) root.scheduleSearch()
                 return
             }
             if (m.id !== root.requestId) return
@@ -319,8 +344,10 @@ Rectangle {
     }
 
     ColumnLayout {
+        objectName: "wiki-main-layout"
         visible: !root.folderPickerOpen
         anchors.fill: parent; anchors.margins: 34 * root.u; spacing: 22 * root.u
+        anchors.bottomMargin: 34 * root.u + root.keyboardInset
         RowLayout {
             Layout.fillWidth: true
             ColumnLayout {
@@ -330,14 +357,14 @@ Rectangle {
             }
             Item { Layout.fillWidth: true }
             WikiButton {
-                text: root.language === "en" ? "EN → עברית" : "עברית → EN"
+                text: root.language === "en" ? "Wiki: EN" : "Wiki: עברית"
                 Layout.preferredWidth: 175 * root.u; Layout.preferredHeight: 62 * root.u; textSize: 22 * root.u
                 enabled: root.ready && !root.controlsLocked
-                onClicked: { root.language = root.language === "en" ? "he" : "en"; root.keyboardOpen = true }
+                onClicked: { root.language = root.language === "en" ? "he" : "en"; root.showKeyboard() }
             }
             WikiButton {
                 text: "Close"; Layout.preferredWidth: 110 * root.u; Layout.preferredHeight: 62 * root.u; textSize: 23 * root.u
-                onClicked: root.close()
+                onClicked: root.closeApp()
             }
         }
         Rectangle { Layout.fillWidth: true; height: 1; color: "#bbbbbb" }
@@ -352,7 +379,8 @@ Rectangle {
                     verticalAlignment: TextInput.AlignVCenter
                     font.pixelSize: 30 * root.u; color: "#171717"; clip: true
                     maximumLength: 200; selectByMouse: true; readOnly: root.controlsLocked
-                    TapHandler { onTapped: if (!root.controlsLocked) root.keyboardOpen = true }
+                    inputMethodHints: Qt.ImhNoAutoUppercase
+                    TapHandler { onTapped: root.showKeyboard() }
                     onTextChanged: root.scheduleSearch()
                     onInputMethodComposingChanged: root.scheduleSearch()
                     onAccepted: root.search()
@@ -368,7 +396,8 @@ Rectangle {
             WikiButton {
                 objectName: "wiki-keyboard-toggle"
                 text: root.keyboardOpen ? "Hide keys" : "Keyboard"; Layout.preferredWidth: 150 * root.u; Layout.preferredHeight: 80 * root.u; textSize: 23 * root.u
-                enabled: !root.controlsLocked; onClicked: root.keyboardOpen = !root.keyboardOpen
+                enabled: !root.controlsLocked
+                onClicked: { if (root.keyboardOpen) root.hideKeyboard(); else root.showKeyboard() }
             }
         }
         RowLayout {
@@ -507,16 +536,6 @@ Rectangle {
             WikiButton { text: "←"; enabled: root.resultPage > 0 && !root.controlsLocked; width: 95 * root.u; height: 55 * root.u; onClicked: { root.resultPage--; resultList.positionViewAtBeginning() } }
             Text { text: (root.resultPage + 1) + " / " + Math.ceil(root.results.length / 4); font.pixelSize: 23 * root.u }
             WikiButton { text: "→"; enabled: (root.resultPage + 1) * 4 < root.results.length && !root.controlsLocked; width: 95 * root.u; height: 55 * root.u; onClicked: { root.resultPage++; resultList.positionViewAtBeginning() } }
-        }
-        Keyboard {
-            objectName: "wiki-keyboard"
-            visible: root.keyboardOpen; enabled: !root.controlsLocked
-            Layout.fillWidth: true; unit: root.u; language: root.language
-            onKey: value => {
-                if (value === "SEARCH") { root.search(); return }
-                if (value === "BACKSPACE") { if (query.selectionStart !== query.selectionEnd) query.remove(query.selectionStart, query.selectionEnd); else if (query.cursorPosition > 0) query.remove(query.cursorPosition - 1, query.cursorPosition) }
-                else if (query.text.length < 200) query.insert(query.cursorPosition, value)
-            }
         }
         Text { text: "Direct from Wikipedia · No account required"; font.pixelSize: 18 * root.u; color: "#666666"; Layout.alignment: Qt.AlignHCenter }
     }

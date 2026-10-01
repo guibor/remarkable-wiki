@@ -30,7 +30,7 @@ Network operations run outside the UI. Request IDs prevent stale results from
 replacing new state. Only one operation runs at a time; cancellation interrupts
 HTTP. Backend never imports or writes library files itself.
 
-`qml/Main.qml` hosts the search/results, touch keyboard, English/Hebrew selector
+`qml/Main.qml` hosts the search/results, native input-method integration, English/Hebrew selector
 and download states. `scheduleSearch()` debounces edits/language changes by
 500 ms, requires two characters, and cancels and invalidates older searches
 immediately, before the next request. IME composition waits until committed.
@@ -48,6 +48,24 @@ cancellation and stale responses preserve it. The clipped `ListView` remains
 visible and scrollable with the keyboard open. Input uses `readOnly` during
 non-search work rather than disabled/re-enabled focus transitions. Keyboard opening is an
 explicit input tap/button action, never a side effect of focus restoration.
+
+v0.3.1 removes `Keyboard.qml` and its resource entry. `showKeyboard()` focuses
+the real TextInput and calls `Qt.inputMethod.show()`; `hideKeyboard()` releases
+focus and calls hide. `closeApp()` hides before closing. Submit/download/folder/
+Open routes explicitly dismiss it, while automatic searches never do. The
+read-only `keyboardOpen` follows system visibility, including native dismissal.
+`keyboardInset` maps the system keyboard rectangle from window coordinates into
+the app's local coordinate system, so AppLoad scaling is respected. The main
+layout's bottom margin reserves the overlap. A window already resized above the
+keyboard or a zero rectangle does not get a second margin. No hardcoded keyboard
+height, overlay keyboard, global language write, or native keyboard-window
+creation. `inputMethod` defaults to Qt.inputMethod and is injectable for desktop
+tests only. Native TextInput owns text insertion, selection, backspace and IME
+composition; no app glyph or manual deletion path remains. The language button
+is labelled Wiki: EN / Wiki: עברית and only selects the Wikipedia site. Native
+layouts follow the tablet's existing settings. Hebrew string handling is tested;
+availability of a Hebrew system layout is not claimed from a desktop mock.
+
 `download()` sends the result set's original language, even if the user has
 since changed the language selector. Once a PDF is complete, it calls the stock
 `DocumentImporter.importFromUrls([fileUrl], destinationId)` (empty ID means
@@ -168,3 +186,10 @@ v0.3.0 UI-only transaction `wiki-ui-20261001T180343Z` preserves the same backend
 state/icon, PID 861536, zero restarts, drop-ins and read-only root. All 31 Qt
 checks and Go/race/vet pass. Live-search physical QA is next, independent of the
 older demo's confirmed Open flow. No Move deployment or public posting.
+
+v0.3.1 UI-only transaction `wiki-ui-20261001T203935Z` installs native-keyboard
+integration. Backend/state/icon hashes and editor runtime match their preimages
+(PID861536, zero restarts, same drop-ins/read-only root). Thirty-six Qt checks
+and Go/race/vet pass. Desktop layout with a simulated keyboard rectangle was
+inspected; the blank reserved area is not a rendering of the actual keyboard.
+Physical native keyboard/language/Enter/backspace acceptance remains next.

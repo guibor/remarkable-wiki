@@ -54,8 +54,13 @@ The setting does not move PDFs you've already downloaded or create duplicates
 of them. Folder IDs survive renames; a deleted or trashed destination produces
 an error asking you to choose again, rather than silently saving elsewhere.
 
-The language button switches between English and Hebrew Wikipedia and their
-keyboards. Search language is remembered. The **Keyboard** button lets you
+The **Wiki: EN / Wiki: עברית** button switches between English and Hebrew
+Wikipedia. Search language is remembered; it does not change your tablet's
+keyboard language. v0.3.1 uses the **native reMarkable keyboard**, with its
+existing layouts/settings, instead of an app-owned key grid. Tap the search
+field or **Keyboard** to open it; **Hide keys** dismisses it. The results resize
+above it. Use the native keyboard's language controls for its available layouts;
+the app does not install additional layouts. The **Keyboard** button lets you
 edit your query after searching. Results stay visible while you type or toggle
 the keyboard. New searches run after a brief pause; Search/Enter skips the wait.
 The keyboard stays usable while searching, and old results remain available
@@ -78,9 +83,13 @@ only its cached source PDF. An unresolved ID retains that cache for verification
 
 | Target | Status |
 | --- | --- |
-| Paper Pro, 3.29.0.148, AppLoad 0.6.0 | Owner's recording confirms refresh/import/Open on v0.2.2. v0.3.0 incremental search and quiet refresh installed; 31 UI checks and Go/race/vet pass. Physical live-search QA pending |
+| Paper Pro, 3.29.0.148, AppLoad 0.6.0 | Owner's recording confirms refresh/import/Open on v0.2.2. v0.3.1 installed with native keyboard, incremental search and quiet refresh; 36 UI checks and Go/race/vet pass. Physical native-keyboard/live-search QA pending |
 | Paper Pro Move | Responsive UI covered by desktop mocks; not installed or device-qualified |
 | Other firmware/devices | Not yet qualified |
+
+v0.3.1 native-keyboard integration passes 36 Qt checks and Go/race/vet. These
+tests mock the system input method; actual keyboard visibility/layout selection
+and typing on-device remain separate acceptance checks. See the dated log.
 
 Installing the app **does not** install AppLoad or XOVI, replace other apps,
 patch the editor, change the boot process, or restart the tablet. It uses the

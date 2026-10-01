@@ -13,7 +13,12 @@
   searching must not hide/disable the keyboard or clear existing results.
   Immediately invalidate older requests when query/language changes; retain
   results on failures/cancellation. Downloading a visible result cancels search.
-- English default and Hebrew option; remember language, provide touch keyboard.
+- English default and Hebrew Wikipedia option; remember search language.
+- Use the native reMarkable keyboard, not an app-owned keyboard. Open it from
+  the query field/Keyboard button, reserve its actual overlap above the results,
+  and hide it on explicit submission, download, folder navigation or app close.
+  Leave the tablet's keyboard language/settings unchanged; Wikipedia language
+  and keyboard layout are distinct. Preserve incremental search and Unicode input.
 - Import through the editor's existing DocumentImporter. Do not write library
   metadata, modify existing documents, patch firmware, or restart per download.
 - Configurable existing destination folder, remembered across app launches;
@@ -66,9 +71,16 @@
   history/icon/editor runtime preserved. Edited demo linked in unsent Reddit draft.
 - NEXT: physical live-search QA (keyboard stays usable, no disappearing results,
   selection during search) and quiet-link appearance. Publication remains gated.
+- DONE: v0.3.1 native keyboard installed UI-only via wiki-ui-20261001T203935Z;
+  36 Qt checks plus Go/race/vet pass. Backend/state/icon/runtime preserved.
+- NEXT: physically check native keyboard, language
+  selection, Enter, backspace and results above it. No automatic Move install.
 - Independently qualify Move; do not infer support from desktop layout tests.
 
 * Changed requirements
+- 2026-10-01: custom EN/Hebrew key grid replaced by the system input method.
+  The broken Unicode backspace label disappears with that grid. Wikipedia
+  language selector no longer implies changing the system keyboard layout.
 - 2026-10-01: supersedes explicit-only search: user now requests incremental
   search while retaining stable results/keyboard. Download again's large button
   becomes a secondary Refresh article text link to prioritize Open PDF.
